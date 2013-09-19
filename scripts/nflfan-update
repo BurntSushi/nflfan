@@ -1,0 +1,23 @@
+#!/usr/bin/env python2
+
+from __future__ import absolute_import, division, print_function
+from functools import partial
+
+import nfldb
+
+import nflfan
+
+db = nfldb.connect()
+conf = nflfan.config()
+
+lg = conf['yahoo'][0]
+prov = nflfan.provider.Yahoo(lg)
+
+# print(prov.matchups(1)) 
+# prov.matchups(1) 
+# print(prov.owners()) 
+# print(map(str, prov.owners())) 
+
+owners = prov.owners()
+prov.roster(partial(nflfan.player_search, db), owners[7], 1)
+

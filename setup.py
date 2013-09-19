@@ -62,5 +62,5 @@ setup(
                                       'COPYING', 'INSTALL']),
                 ('share/doc/nflfan/doc', docfiles)],
     install_requires=install_requires,
-    scripts=[]
+    scripts=['nflfan-yahoo-tokens']
 )
