@@ -8,7 +8,8 @@ import sys
 
 import toml
 
-import nflfan.provider
+import nflfan.provider as provider
+import nflfan.score as score
 
 _xdg_home = os.getenv('XDG_CONFIG_HOME')
 """XDG user configuration directory."""
@@ -28,11 +29,11 @@ _data_paths = [
 
 _schema = {
     'all': {
-        'req': nflfan.provider.Provider.conf_required,
-        'opt': nflfan.provider.Provider.conf_optional,
+        'req': provider.Provider.conf_required,
+        'opt': provider.Provider.conf_optional,
     },
 }
-for prov in nflfan.provider.providers:
+for prov in provider.providers:
     _schema[prov.name] = {'req': prov.conf_required, 'opt': prov.conf_optional}
 """A down and dirty schema to validate config files."""
 
@@ -95,7 +96,6 @@ def merge(s):
     def merge(d, defaults, name):
         settings, subs = settings_and_subschemes(d, defaults)
         schemes[name] = settings
-        schemes[name]['name'] = name
         for subname, subscheme in subs.items():
             fullname = '%s.%s' % (name, subname)
             merge(subscheme, settings, fullname)
@@ -139,16 +139,19 @@ def apply_schema(scoring, pos_groups, prov_name, prov, lg):
     """
     def get_scoring(ref):
         try:
-            return scoring[ref]
+            return score.ScoreSchema(ref, scoring[ref])
         except KeyError:
             raise KeyError("Scoring scheme %s does not exist." % ref)
 
     def get_pos_group(ref):
         try:
-            d = pos_groups[ref]
             # TOML doesn't have tuples, so convert the two-element lists
             # to a more appropriate representation.
-            return dict([(g, map(tuple, fields)) for g, fields in d.items()])
+            def to_group(name, fields):
+                return provider.PositionGroup(name, map(tuple, fields))
+
+            d = pos_groups[ref]
+            return dict([(g, to_group(g, fields)) for g, fields in d.items()])
         except KeyError:
             raise KeyError("Position grouping %s does not exist." % ref)
 

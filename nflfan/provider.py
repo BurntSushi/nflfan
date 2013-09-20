@@ -1,5 +1,6 @@
 from __future__ import absolute_import, division, print_function
 from collections import namedtuple
+import functools
 import re
 
 import requests
@@ -81,17 +82,21 @@ class Owner (namedtuple('Owner', 'ident name')):
         return self.name
 
 
-class Roster (namedtuple('Roster', 'owner week players')):
+class Roster (namedtuple('Roster', 'provider owner season week players')):
+    __pdoc__['Roster.provider'] = \
+        """The `nflfan.Provider` object that created this roster."""
+
     __pdoc__['Roster.owner'] = \
         """
         A `nflfan.Owner` object corresponding to the owner of this
         roster.
         """
 
+    __pdoc__['Roster.season'] = \
+        """The year of the corresponding NFL season."""
+
     __pdoc__['Roster.week'] = \
-        """
-        The week number in which this roster was set.
-        """
+        """The week number in which this roster was set."""
 
     __pdoc__['Roster.players'] = \
         """
@@ -99,28 +104,81 @@ class Roster (namedtuple('Roster', 'owner week players')):
         set of players on this roster.
         """
 
+    @property
+    def active(self):
+        return filter(lambda rp: not rp.bench, self.players)
 
-class RosterPlayer (namedtuple('RosterPlayer', 'position group bench player')):
+    @property
+    def benched(self):
+        return filter(lambda rp: rp.bench, self.players)
+
+    def grouped(self, bench=True):
+        """
+        Returns a list of lists, where each list corresponds to only
+        the players in a particular position grouping.
+
+        When `bench` is `False`, then benched players will be omitted.
+        """
+        rps = sorted(self.players, key=lambda rp: (rp.group, rp.bench))
+        groups = []
+        g = []
+        last = None
+        for i, rp in enumerate(rps):
+            if i == 0 or last != rp.group:
+                groups.append(g)
+                g = [rp]
+            else:
+                g.append(rp)
+            last = rp.group
+        groups.append(g)
+        return groups
+
+    def __str__(self):
+        s = []
+        for group in self.grouped():
+            for rp in group:
+                s.append(str(rp))
+        return '\n'.join(s)
+
+
+class RosterPlayer (namedtuple('RosterPlayer',
+                               'position team group bench player')):
     __pdoc__['RosterPlayer.position'] = \
         """
-        A string corresponding to the position of this player in the
-        roster. The possible values of this string are provider
-        dependent.
+        A string corresponding to the position of the roster spot
+        occupied by this player. The possible values of this string are
+        provider dependent.
+        """
+
+    __pdoc__['RosterPlayer.team'] = \
+        """
+        A team abbreviation that this player belongs to. It must be a
+        valid nfldb team abbreviation and *cannot* be `UNK`.
         """
 
     __pdoc__['RosterPlayer.group'] = \
         """The `nflfan.PositionGroup` that this player belongs to."""
 
     __pdoc__['RosterPlayer.bench'] = \
-        """A boolean indicated whether this is a bench position or not."""
+        """A boolean indicating whether this is a bench position or not."""
 
     __pdoc__['RosterPlayer.player'] = \
         """
         A `nfldb.Player` object corresponding to the player in this
-        roster position.
+        roster position. This may be `None` when the roster player
+        corresponds to an entire team. (e.g., A defense.)
         """
 
+    @property
+    def name(self):
+        return self.team if self.player is None else self.player.full_name
 
+    def __str__(self):
+        return '%-6s %-4s %s (%s)' \
+               % (self.position, self.team, self.name, self.group.name)
+
+
+@functools.total_ordering
 class PositionGroup (namedtuple('PositionGroup', 'name fields')):
     """
     Represents a grouping of statistical categories corresponding
@@ -130,15 +188,27 @@ class PositionGroup (namedtuple('PositionGroup', 'name fields')):
     statistical categories and therefore usually belong to the same
     group.
     """
+    _ord = ['offense', 'kicking', 'defense']
+    """The order that the position groups should be displayed."""
 
     __pdoc__['PositionGroup.name'] = \
-        """The display name for this position group."""
+        """The name for this position group used in the configuration."""
 
     __pdoc__['PositionGroup.fields'] = \
         """
-        A list of attributes on a `nfldb.PlayPlayer` object to display
-        in the scoring breakdown.
+        An association list mapping display names to statistical
+        categories. This list defines the set of columns to show for
+        this position grouping.
         """
+
+    def __str__(self):
+        print(self.fields)
+        cols = ', '.join([disp for disp, _ in self.fields])
+        return '%s: %s' % (self.name, cols)
+
+    def __lt__(self, other):
+        seq = PositionGroup._ord.index
+        return seq(self.name) < seq(other.name)
 
 
 class Provider (object):
@@ -242,7 +312,7 @@ class Yahoo (Provider):
 
     def roster(self, player_search, owner, week):
         def to_pos(row):
-            return row.td.find(class_='pos-label')['data-pos'].strip()
+            return row.td.find(class_='pos-label')['data-pos'].strip().upper()
 
         def to_name(row):
             return row.find(class_='ysf-player-name').a.text.strip()
@@ -251,16 +321,33 @@ class Yahoo (Provider):
             team_pos = row.find(class_='ysf-player-name').span.text.strip()
             return nfldb.standard_team(re.search('^\S+', team_pos).group(0))
 
+        def pos_group(pos):
+            if pos == nfldb.Enums.player_pos.K:
+                return self.position_groups['kicking']
+            else:
+                return self.position_groups['offense']
+
+        def rplayer(name, team, pos):
+            bench = pos == 'BN'
+            if nfldb.standard_team(name) != 'UNK':
+                return RosterPlayer(pos, team, self.position_groups['defense'],
+                                    bench, None)
+            else:
+                player = player_search(name, team=team, position=pos)
+                pgroup = pos_group(player.position)
+                return RosterPlayer(pos, team, pgroup, bench, player)
+
         match_table_id = re.compile('^statTable[0-9]+$')
 
         url = _urls['yahoo']['roster'] % (self.league_num, owner.ident, week)
         soup = BeautifulSoup(self._request(url).text)
 
+        players = []
         for table in soup.find_all(id=match_table_id):
             for row in table.tbody.find_all('tr', recursive=False):
                 pos, team, name = to_pos(row), to_team(row), to_name(row)
-                player = player_search(name, team=team, position=pos)
-                print(pos, team, name, ' --- ', player)
+                players.append(rplayer(name, team, pos))
+        return Roster(self, owner, self.season, week, players)
 
     def _owner_id_from_url(self, url):
         return re.search('%s/([0-9]+)' % self.league_num, url).group(1)
