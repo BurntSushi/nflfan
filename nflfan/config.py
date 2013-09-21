@@ -34,7 +34,9 @@ _schema = {
     },
 }
 for prov in provider.providers:
-    _schema[prov.name] = {'req': prov.conf_required, 'opt': prov.conf_optional}
+    _schema[prov.provider_name] = {
+        'req': prov.conf_required, 'opt': prov.conf_optional,
+    }
 """A down and dirty schema to validate config files."""
 
 
@@ -68,8 +70,8 @@ def config(file_path=''):
         if prov_name in ('scoring', 'position_groups'):
             continue
 
-        provider['name'] = prov_name
         for lg_name, lg in prov_leagues(provider):
+            lg['league_name'] = lg_name
             apply_schema(scoring, pos_groups, prov_name, provider, lg)
             conf[prov_name].append(lg)
     return conf
@@ -124,6 +126,35 @@ def get_data(name, file_path=''):
         except IOError:
             pass
     raise IOError("Could not find configuration file %s" % name)
+
+
+def json_path(name):
+    """
+    Returns a path to a possibly non-existent cached JSON file.
+
+    `name` should not include the `.json` suffix.
+    """
+    return path.join(cache_dir(), name + '.json')
+
+
+def cache_dir():
+    """
+    Returns a file path to the cache directory. If a cache directory
+    does not exist, one is created.
+
+    If there is a problem creating a cache directory, an `IOError`
+    exception is raised.
+    """
+    for fp in _data_paths:
+        if os.access(fp, os.R_OK):
+            cdir = path.join(fp, 'cache')
+            if not os.access(cdir, os.R_OK):
+                try:
+                    os.mkdir(cdir)
+                except IOError as e:
+                    raise IOError(e + ' (please create a cache directory)')
+            return cdir
+    raise IOError('could not find or create a cache directory')
 
 
 def apply_schema(scoring, pos_groups, prov_name, prov, lg):

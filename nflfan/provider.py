@@ -1,6 +1,7 @@
 from __future__ import absolute_import, division, print_function
 from collections import namedtuple
 import functools
+import json
 import re
 
 import requests
@@ -11,7 +12,15 @@ import nfldb
 
 __pdoc__ = {}
 
-_user_agent = 'Mozilla/5.0'
+_user_agent = 'Mozilla/5.0 (X11; Linux x86_64)'
+"""
+The user agent string is heuristically determined. Namely, I was having
+problems getting some providers to authenticate with more vague user
+agent strings.
+
+You may want to use a different user agent string entirely if you're
+writing your own provider.
+"""
 
 _urls = {
     'yahoo': {
@@ -66,10 +75,7 @@ class Matchup (namedtuple('Matchup', 'owner1 owner2')):
         return '%s vs. %s' % (self.owner1, self.owner2)
 
 
-class Owner (namedtuple('Owner', 'provider ident name')):
-    __pdoc__['Owner.provider'] = \
-        """The `nflfan.Provider` object that created this owner."""
-
+class Owner (namedtuple('Owner', 'ident name')):
     __pdoc__['Owner.ident'] = \
         """
         A unique identifier corresponding to this owner. The type
@@ -77,18 +83,13 @@ class Owner (namedtuple('Owner', 'provider ident name')):
         """
 
     __pdoc__['Owner.name'] = \
-        """
-        A string representing the name of this owner.
-        """
+        """A string representing the name of this owner."""
 
     def __str__(self):
         return self.name
 
 
-class Roster (namedtuple('Roster', 'provider owner season week players')):
-    __pdoc__['Roster.provider'] = \
-        """The `nflfan.Provider` object that created this roster."""
-
+class Roster (namedtuple('Roster', 'owner season week players')):
     __pdoc__['Roster.owner'] = \
         """
         A `nflfan.Owner` object corresponding to the owner of this
@@ -124,7 +125,8 @@ class Roster (namedtuple('Roster', 'provider owner season week players')):
 
         When `bench` is `False`, then benched players will be omitted.
         """
-        rps = sorted(self.players, key=lambda rp: (rp.group, rp.bench))
+        seq = PositionGroup._ord.index
+        rps = sorted(self.players, key=lambda rp: (seq(rp.group), rp.bench))
         groups = []
         g = []
         last = None
@@ -148,7 +150,8 @@ class Roster (namedtuple('Roster', 'provider owner season week players')):
 
 class RosterPlayer (
     namedtuple('RosterPlayer',
-               'position team group bench season week playing points player')):
+               'position team group bench season week '
+               'playing points player_id')):
     __pdoc__['RosterPlayer.position'] = \
         """
         A string corresponding to the position of the roster spot
@@ -163,7 +166,7 @@ class RosterPlayer (
         """
 
     __pdoc__['RosterPlayer.group'] = \
-        """The `nflfan.PositionGroup` that this player belongs to."""
+        """The name of the position group that this player belongs to."""
 
     __pdoc__['RosterPlayer.bench'] = \
         """A boolean indicating whether this is a bench position or not."""
@@ -180,21 +183,35 @@ class RosterPlayer (
     __pdoc__['RosterPlayer.points'] = \
         """The total fantasy points for this roster player."""
 
-    __pdoc__['RosterPlayer.player'] = \
+    __pdoc__['RosterPlayer.player_id'] = \
         """
-        A `nfldb.Player` object corresponding to the player in this
-        roster position. This may be `None` when the roster player
-        corresponds to an entire team. (e.g., A defense.)
+        A player id string corresponding to the player in this roster
+        position and a player in nfldb. This may be `None` when the
+        roster player corresponds to an entire team. (e.g., A defense.)
         """
 
     @property
-    def name(self):
-        return self.team if self.player is None else self.player.full_name
+    def id(self):
+        return self.team if self.player_id is None else self.player_id
+
+    def player(self, db):
+        """
+        Given a database connection, return the `nfldb.Player`
+        corresponding to this roster player. If this is a defense, then
+        `None` is returned.
+
+        If no player can be found, then a `LookupError` is raised.
+        """
+        if self.player_id is None:
+            return None
+        p = nfldb.Player.from_id(db, self.player_id)
+        if p is None:
+            raise ValueError("Could not find player for %s" % self.player_id)
+        return p
 
     def __str__(self):
         return '%-6s %-4s %0.2f %s (%s)' \
-               % (self.position, self.team, self.points,
-                  self.name, self.group.name)
+               % (self.position, self.team, self.points, self.id, self.group)
 
 
 @functools.total_ordering
@@ -241,11 +258,11 @@ class Provider (object):
     provider implementation, including the class variables.
     """
 
-    name = None
+    provider_name = None
     """The name of the provider used in the configuration file."""
 
     conf_required = ['scoring', 'position_groups',
-                     'name', 'season', 'league_id']
+                     'league_name', 'season', 'league_id']
     """A list of fields required for every provider."""
 
     conf_optional = []
@@ -281,6 +298,33 @@ class Provider (object):
         """
         assert False, 'subclass responsibility'
 
+    def json(self, player_search, week, fobj=None):
+        """
+        Returns a JSON encoding of all the owners, matchups and rosters
+        for the given week. If `fobj` is not `None`, then the JSON
+        encoding is written to the file given and `None` is returned.
+
+        `player_search` should be a function that takes a full
+        player name and returns the closest matching player as a
+        `nfldb.Player` object. It should also optionally take keyword
+        arguments `team` and `position` that allow for extra filtering.
+        """
+        d = {
+            'owners': self.owners(),
+        }
+        if fobj is None:
+            return json.dumps(d, indent=2)
+        else:
+            json.dump(d, fobj, indent=2)
+            return None
+
+    @property
+    def name(self):
+        """
+        Returns a uniquely identifying name for this provider instance.
+        """
+        return '%s.%s' % (self.provider_name, self.league_name)
+
     def _set_conf_attrs(self, provider, lg):
         for k in Provider.conf_required + Provider.conf_optional:
             setattr(self, k, lg.get(k, None))
@@ -289,7 +333,7 @@ class Provider (object):
 
 
 class Yahoo (Provider):
-    name = 'yahoo'
+    provider_name = 'yahoo'
     conf_required = []
     conf_optional = ['username', 'password']
     _headers = {'User-Agent': _user_agent}
@@ -300,7 +344,6 @@ class Yahoo (Provider):
 
         self._session = requests.Session()
         self._session.headers.update(Yahoo._headers)
-        self._login()
 
     def owners(self):
         match_owner_link = re.compile('team-[0-9]+-name')
@@ -310,7 +353,7 @@ class Yahoo (Provider):
         owners = []
         for link in soup.find_all(id=match_owner_link):
             ident = self._owner_id_from_url(link['href'])
-            owners.append(Owner(self, ident, link.text.strip()))
+            owners.append(Owner(ident, link.text.strip()))
         return owners
 
     def matchups(self, week):
@@ -324,7 +367,7 @@ class Yahoo (Provider):
             t1, t2 = list(matchup.find_all('div', class_='Fz-sm'))
             ident1, ident2 = owner_id(t1.a['href']), owner_id(t2.a['href'])
             name1, name2 = t1.text.strip(), t2.text.strip()
-            o1, o2 = Owner(self, ident1, name1), Owner(self, ident2, name2)
+            o1, o2 = Owner(ident1, name1), Owner(ident2, name2)
 
             matchups.append(Matchup(o1, o2))
         return matchups
@@ -342,26 +385,25 @@ class Yahoo (Provider):
 
         def pos_group(pos):
             if pos == nfldb.Enums.player_pos.K:
-                return self.position_groups['kicking']
+                return 'kicking'
             else:
-                return self.position_groups['offense']
+                return 'offense'
 
         def rplayer(r, name, team, pos):
             bench = pos == 'BN'
             if nfldb.standard_team(name) != 'UNK':
-                return r.new_player(pos, team, self.position_groups['defense'],
-                                    bench, None)
+                return r.new_player(pos, team, 'defense', bench, None)
             else:
                 player = player_search(name, team=team, position=pos)
                 pgroup = pos_group(player.position)
-                return r.new_player(pos, team, pgroup, bench, player)
+                return r.new_player(pos, team, pgroup, bench, player.player_id)
 
         match_table_id = re.compile('^statTable[0-9]+$')
 
         url = _urls['yahoo']['roster'] % (self.league_num, owner.ident, week)
         soup = BeautifulSoup(self._request(url).text)
 
-        roster = Roster(self, owner, self.season, week, [])
+        roster = Roster(owner, self.season, week, [])
         for table in soup.find_all(id=match_table_id):
             for row in table.tbody.find_all('tr', recursive=False):
                 pos, team, name = to_pos(row), to_team(row), to_name(row)
@@ -412,7 +454,7 @@ class Yahoo (Provider):
 
 
 class ESPN (Provider):
-    name = 'espn'
+    provider_name = 'espn'
     conf_required = []
     conf_optional = []
 

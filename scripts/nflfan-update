@@ -2,6 +2,7 @@
 
 from __future__ import absolute_import, division, print_function
 from functools import partial
+import os.path as path
 
 import nfldb
 
@@ -14,8 +15,10 @@ player_search = partial(nflfan.player_search, db)
 lg = conf['yahoo'][0]
 prov = nflfan.provider.Yahoo(lg)
 
-owners = prov.owners()
-roster = prov.roster(player_search, owners[7], 2)
-scored = nflfan.score_roster(roster.provider.scoring, roster)
-print(scored)
+out = open(nflfan.json_path(prov.name), 'w+')
+print(prov.json(player_search, 3, fobj=out))
+
+# owners = prov.owners() 
+# roster = prov.roster(player_search, owners[7], 3) 
+# print(roster) 
 
