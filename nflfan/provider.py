@@ -66,7 +66,10 @@ class Matchup (namedtuple('Matchup', 'owner1 owner2')):
         return '%s vs. %s' % (self.owner1, self.owner2)
 
 
-class Owner (namedtuple('Owner', 'ident name')):
+class Owner (namedtuple('Owner', 'provider ident name')):
+    __pdoc__['Owner.provider'] = \
+        """The `nflfan.Provider` object that created this owner."""
+
     __pdoc__['Owner.ident'] = \
         """
         A unique identifier corresponding to this owner. The type
@@ -92,17 +95,19 @@ class Roster (namedtuple('Roster', 'provider owner season week players')):
         roster.
         """
 
-    __pdoc__['Roster.season'] = \
-        """The year of the corresponding NFL season."""
-
-    __pdoc__['Roster.week'] = \
-        """The week number in which this roster was set."""
-
     __pdoc__['Roster.players'] = \
         """
         A list of `nflfan.RosterPlayer` objects corresponding to the
         set of players on this roster.
         """
+
+    def new_player(self, pos, team, pgroup, bench, player):
+        """
+        A convenience method for creating a new `nflfan.RosterPlayer`
+        given the current roster.
+        """
+        return RosterPlayer(pos, team, pgroup, bench, self.season, self.week,
+                            False, 0.0, player)
 
     @property
     def active(self):
@@ -141,8 +146,9 @@ class Roster (namedtuple('Roster', 'provider owner season week players')):
         return '\n'.join(s)
 
 
-class RosterPlayer (namedtuple('RosterPlayer',
-                               'position team group bench player')):
+class RosterPlayer (
+    namedtuple('RosterPlayer',
+               'position team group bench season week playing points player')):
     __pdoc__['RosterPlayer.position'] = \
         """
         A string corresponding to the position of the roster spot
@@ -162,6 +168,18 @@ class RosterPlayer (namedtuple('RosterPlayer',
     __pdoc__['RosterPlayer.bench'] = \
         """A boolean indicating whether this is a bench position or not."""
 
+    __pdoc__['Roster.season'] = \
+        """The year of the corresponding NFL season."""
+
+    __pdoc__['Roster.week'] = \
+        """The week number in which this roster was set."""
+
+    __pdoc__['RosterPlayer.playing'] = \
+        """Whether this player is playing in active game or not."""
+
+    __pdoc__['RosterPlayer.points'] = \
+        """The total fantasy points for this roster player."""
+
     __pdoc__['RosterPlayer.player'] = \
         """
         A `nfldb.Player` object corresponding to the player in this
@@ -174,8 +192,9 @@ class RosterPlayer (namedtuple('RosterPlayer',
         return self.team if self.player is None else self.player.full_name
 
     def __str__(self):
-        return '%-6s %-4s %s (%s)' \
-               % (self.position, self.team, self.name, self.group.name)
+        return '%-6s %-4s %0.2f %s (%s)' \
+               % (self.position, self.team, self.points,
+                  self.name, self.group.name)
 
 
 @functools.total_ordering
@@ -291,7 +310,7 @@ class Yahoo (Provider):
         owners = []
         for link in soup.find_all(id=match_owner_link):
             ident = self._owner_id_from_url(link['href'])
-            owners.append(Owner(ident, link.text.strip()))
+            owners.append(Owner(self, ident, link.text.strip()))
         return owners
 
     def matchups(self, week):
@@ -305,7 +324,7 @@ class Yahoo (Provider):
             t1, t2 = list(matchup.find_all('div', class_='Fz-sm'))
             ident1, ident2 = owner_id(t1.a['href']), owner_id(t2.a['href'])
             name1, name2 = t1.text.strip(), t2.text.strip()
-            o1, o2 = Owner(ident1, name1), Owner(ident2, name2)
+            o1, o2 = Owner(self, ident1, name1), Owner(self, ident2, name2)
 
             matchups.append(Matchup(o1, o2))
         return matchups
@@ -327,27 +346,27 @@ class Yahoo (Provider):
             else:
                 return self.position_groups['offense']
 
-        def rplayer(name, team, pos):
+        def rplayer(r, name, team, pos):
             bench = pos == 'BN'
             if nfldb.standard_team(name) != 'UNK':
-                return RosterPlayer(pos, team, self.position_groups['defense'],
+                return r.new_player(pos, team, self.position_groups['defense'],
                                     bench, None)
             else:
                 player = player_search(name, team=team, position=pos)
                 pgroup = pos_group(player.position)
-                return RosterPlayer(pos, team, pgroup, bench, player)
+                return r.new_player(pos, team, pgroup, bench, player)
 
         match_table_id = re.compile('^statTable[0-9]+$')
 
         url = _urls['yahoo']['roster'] % (self.league_num, owner.ident, week)
         soup = BeautifulSoup(self._request(url).text)
 
-        players = []
+        roster = Roster(self, owner, self.season, week, [])
         for table in soup.find_all(id=match_table_id):
             for row in table.tbody.find_all('tr', recursive=False):
                 pos, team, name = to_pos(row), to_team(row), to_name(row)
-                players.append(rplayer(name, team, pos))
-        return Roster(self, owner, self.season, week, players)
+                roster.players.append(rplayer(roster, name, team, pos))
+        return roster
 
     def _owner_id_from_url(self, url):
         return re.search('%s/([0-9]+)' % self.league_num, url).group(1)
