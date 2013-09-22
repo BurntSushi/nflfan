@@ -17,7 +17,8 @@ def log(*args, **kwargs):
 
 if __name__ == '__main__':
     db = nfldb.connect()
-    conf = nflfan.load_config()
+    providers = nflfan.builtin_providers
+    conf = nflfan.load_config(providers=providers)
     player_search = partial(nflfan.player_search, db)
 
     _, _, current_week = nfldb.current(db)
@@ -35,10 +36,9 @@ if __name__ == '__main__':
 
     for pname, leagues in conf.items():
         for lg in leagues:
-            prov = lg['provider_class'](lg)
-
-            log('Updating %s... ' % prov.name, end='')
-            prov.save(player_search, args.week)
+            log('Updating %s... ' % lg.full_name, end='')
+            prov = providers[lg.prov_name](lg)
+            prov.save(lg.cache_path(args.week), player_search, args.week)
             log('done.')
 
     # out = open(nflfan.json_path(prov.name), 'w+') 

@@ -79,6 +79,9 @@ def load_config(providers=builtin_providers, file_path=''):
             lg['league_name'] = lg_name
             lg['provider_class'] = providers[pname]
             apply_schema(schema, scoring, pos_groups, pname, prov, lg)
+
+            lg = provider.League(lg['season'], lg['league_id'], pname, lg_name,
+                                 lg['scoring'], lg['position_groups'], lg)
             conf[pname].append(lg)
     return conf
 

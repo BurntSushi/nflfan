@@ -61,6 +61,89 @@ def player_search(db, full_name, team=None, position=None):
     return p
 
 
+class League (namedtuple('League',
+                         'season ident prov_name name scoring pgroups conf')):
+    __pdoc__['League.season'] = \
+        """The year of the NFL season for this league."""
+
+    __pdoc__['League.ident'] = \
+        """
+        A unique identifier for this league. The type and format of
+        this value is provider dependent.
+        """
+
+    __pdoc__['League.prov_name'] = \
+        """The name of the provider for this league."""
+
+    __pdoc__['League.name'] = \
+        """The name of this league from the configuration."""
+
+    __pdoc__['League.scoring'] = \
+        """The `nflfan.ScoreScheme` for this league."""
+
+    __pdoc__['League.pgroups'] = \
+        """
+        A dictionary mapping names to `nflfan.PositionGroup` objects.
+        """
+
+    __pdoc__['League.conf'] = \
+        """
+        A dictionary of configuration settings. The keys and values in
+        this dictionary are provider dependent.
+        """
+
+    def __init__(self, *args):
+        super(League, self).__init__(*args)
+        self._cache = {}
+
+    @property
+    def full_name(self):
+        return '%s.%s' % (self.prov_name, self.name)
+
+    def owners(self, week):
+        return self._cached(week, 'owners')
+
+    def matchups(self, week):
+        return self._cached(week, 'matchups')
+
+    def rosters(self, week):
+        return self._cached(week, 'rosters')
+
+    def cache_path(self, week):
+        return nflfan.config.json_path(self.full_name + ('.%d' % week))
+
+    def _cached(self, week, key):
+        if week not in self._cache:
+            self._load(week)
+        return self._cache[week][key]
+
+    def _load(self, week):
+        raw = None
+        fp = self.cache_path(week)
+        try:
+            with open(fp) as f:
+                raw = json.load(f)
+        except IOError:
+            raise IOError(
+                "No cached data for week %d in %s could be found at %s\n"
+                "Have you run `nflfan-update --week %d` yet?"
+                % (week, self.full_name, fp, week))
+
+        d = {'owners': [], 'matchups': [], 'rosters': []}
+        for owner in raw['owners']:
+            d['owners'].append(Owner._make(owner))
+        for matchup in raw['matchups']:
+            o1, o2 = Owner._make(matchup[0]), Owner._make(matchup[1])
+            d['matchups'].append(Matchup(o1, o2))
+        for roster in raw['rosters']:
+            o = Owner._make(roster[0])
+            r = Roster(o, roster[1], roster[2], [])
+            for rp in roster[3]:
+                r.players.append(RosterPlayer._make(rp))
+            d['rosters'].append(r)
+        self._cache[week] = d
+
+
 class Matchup (namedtuple('Matchup', 'owner1 owner2')):
     __pdoc__['Matchup.owner1'] = \
         """
@@ -264,8 +347,8 @@ class Provider (object):
     provider_name = None
     """The name of the provider used in the configuration file."""
 
-    conf_required = ['provider_class', 'scoring', 'position_groups',
-                     'league_name', 'season', 'league_id']
+    conf_required = ['scoring', 'position_groups', 'league_name', 'season',
+                     'league_id']
     """A list of fields required for every provider."""
 
     conf_optional = []
@@ -301,11 +384,10 @@ class Provider (object):
         """
         assert False, 'subclass responsibility'
 
-    def save(self, player_search, week):
+    def save(self, fp, player_search, week):
         """
-        Returns a JSON encoding of all the owners, matchups and rosters
-        for the given week. If `fobj` is not `None`, then the JSON
-        encoding is written to the file given and `None` is returned.
+        Writes a JSON encoding of all the owners, matchups and rosters
+        for the given week to a file at `fp`.
 
         `player_search` should be a function that takes a full
         player name and returns the closest matching player as a
@@ -324,22 +406,7 @@ class Provider (object):
 
         pool = multiprocessing.pool.ThreadPool(3)
         d['rosters'] = pool.map(roster, d['owners'])
-
-        fp = nflfan.config.json_path(self.name + ('.%d' % week))
-        json.dump(d, open(fp, 'w+'), indent=2)
-
-    @property
-    def name(self):
-        """
-        Returns a uniquely identifying name for this provider instance.
-        """
-        return '%s.%s' % (self.provider_name, self.league_name)
-
-    def _set_conf_attrs(self, provider, lg):
-        for k in Provider.conf_required + Provider.conf_optional:
-            setattr(self, k, lg.get(k, None))
-        for k in provider.conf_required + provider.conf_optional:
-            setattr(self, k, lg.get(k, None))
+        json.dump(d, open(fp, 'w+'))
 
 
 class Yahoo (Provider):
@@ -349,8 +416,8 @@ class Yahoo (Provider):
     _headers = {'User-Agent': _user_agent}
 
     def __init__(self, lg):
-        self._set_conf_attrs(Yahoo, lg)
-        self.season_id, _, self.league_num = self.league_id.split('.')
+        self._lg = lg
+        _, _, self._league_num = self._lg.ident.split('.')
 
         self._session = requests.Session()
         self._session.headers.update(Yahoo._headers)
@@ -358,7 +425,7 @@ class Yahoo (Provider):
     def owners(self):
         match_owner_link = re.compile('team-[0-9]+-name')
 
-        url = _urls['yahoo']['owner'] % self.league_num
+        url = _urls['yahoo']['owner'] % self._league_num
         soup = BeautifulSoup(self._request(url).text)
         owners = []
         for link in soup.find_all(id=match_owner_link):
@@ -369,7 +436,7 @@ class Yahoo (Provider):
     def matchups(self, week):
         owner_id = self._owner_id_from_url
 
-        url = _urls['yahoo']['matchup'] % (self.league_num, week)
+        url = _urls['yahoo']['matchup'] % (self._league_num, week)
         rjson = self._request(url).json()
         soup = BeautifulSoup(rjson['content'])
         matchups = []
@@ -410,10 +477,10 @@ class Yahoo (Provider):
 
         match_table_id = re.compile('^statTable[0-9]+$')
 
-        url = _urls['yahoo']['roster'] % (self.league_num, owner.ident, week)
+        url = _urls['yahoo']['roster'] % (self._league_num, owner.ident, week)
         soup = BeautifulSoup(self._request(url).text)
 
-        roster = Roster(owner, self.season, week, [])
+        roster = Roster(owner, self._lg.season, week, [])
         for table in soup.find_all(id=match_table_id):
             for row in table.tbody.find_all('tr', recursive=False):
                 pos, team, name = to_pos(row), to_team(row), to_name(row)
@@ -421,7 +488,7 @@ class Yahoo (Provider):
         return roster
 
     def _owner_id_from_url(self, url):
-        return re.search('%s/([0-9]+)' % self.league_num, url).group(1)
+        return re.search('%s/([0-9]+)' % self._league_num, url).group(1)
 
     def _request(self, url):
         r = self._session.get(url)
@@ -444,7 +511,10 @@ class Yahoo (Provider):
             return
 
         form = self._login_form(soup)
-        params = {'login': self.username, 'passwd': self.password}
+        params = {
+            'login': self._lg.conf['username'],
+            'passwd': self._lg.conf['password'],
+        }
         params['.save'] = 'Sign In'
         for inp in form.find_all('input', type='hidden'):
             params[inp['name']] = inp['value']
