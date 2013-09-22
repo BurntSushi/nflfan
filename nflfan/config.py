@@ -27,20 +27,14 @@ _data_paths = [
 ]
 """A list of paths to check for loading data files."""
 
-_schema = {
-    'all': {
-        'req': provider.Provider.conf_required,
-        'opt': provider.Provider.conf_optional,
-    },
+builtin_providers = {
+    'yahoo': provider.Yahoo,
+    'espn': provider.ESPN,
 }
-for prov in provider.providers:
-    _schema[prov.provider_name] = {
-        'req': prov.conf_required, 'opt': prov.conf_optional,
-    }
-"""A down and dirty schema to validate config files."""
+"""The default set of providers defined by nflfan."""
 
 
-def config(file_path=''):
+def load_config(providers=builtin_providers, file_path=''):
     """
     Reads and loads the configuration file containing fantasy football
     league information.
@@ -61,19 +55,31 @@ def config(file_path=''):
     def prov_leagues(d):
         return ((k, v) for k, v in d.items() if isinstance(v, dict))
 
+    schema = {
+        'all': {
+            'req': provider.Provider.conf_required,
+            'opt': provider.Provider.conf_optional,
+        },
+    }
+    for prov in providers.values():
+        schema[prov.provider_name] = {
+            'req': prov.conf_required, 'opt': prov.conf_optional,
+        }
+
     raw = toml.loads(get_data('config.toml', file_path=file_path))
     scoring = merge(raw['scoring'])
     pos_groups = merge(raw['position_groups'])
 
     conf = defaultdict(list)
-    for prov_name, provider in raw.items():
-        if prov_name in ('scoring', 'position_groups'):
+    for pname, prov in raw.items():
+        if pname in ('scoring', 'position_groups'):
             continue
 
-        for lg_name, lg in prov_leagues(provider):
+        for lg_name, lg in prov_leagues(prov):
             lg['league_name'] = lg_name
-            apply_schema(scoring, pos_groups, prov_name, provider, lg)
-            conf[prov_name].append(lg)
+            lg['provider_class'] = providers[pname]
+            apply_schema(schema, scoring, pos_groups, pname, prov, lg)
+            conf[pname].append(lg)
     return conf
 
 
@@ -157,13 +163,20 @@ def cache_dir():
     raise IOError('could not find or create a cache directory')
 
 
-def apply_schema(scoring, pos_groups, prov_name, prov, lg):
+def apply_schema(schema, scoring, pos_groups, prov_name, prov, lg):
     """
     Applies the scheme for the provider `prov_name` to the league `lg`
     while using `prov` as a dictionary of default values for `lg`.
     `scoring` should be a dictionary mapping names to scoring schemes.
     Similarly, `pos_groups` should be a dictionary mapping names to
     position groupings.
+
+    The `schema` should be a dictionary mapping provider name to its
+    set of required and optional fields. Namely, each value should be
+    a dictionary with two keys: `req` and `opt`, where each correspond
+    to a list of required and optional fields, respectively. There
+    must also be an `all` key in `schema` that specifies required and
+    optional fields for every provider.
 
     If a required field in the provider's scheme is missing, then a
     `ValueError` is raised.
@@ -196,7 +209,7 @@ def apply_schema(scoring, pos_groups, prov_name, prov, lg):
             return get_pos_group(v)
         return v
 
-    for r in _schema['all']['req'] + _schema[prov_name]['req']:
+    for r in schema['all']['req'] + schema[prov_name]['req']:
         lg[r] = val(r, required=True)
-    for o in _schema['all']['opt'] + _schema[prov_name]['opt']:
+    for o in schema['all']['opt'] + schema[prov_name]['opt']:
         lg[o] = val(o)

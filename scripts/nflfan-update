@@ -1,24 +1,50 @@
 #!/usr/bin/env python2
 
 from __future__ import absolute_import, division, print_function
+import argparse
 from functools import partial
-import os.path as path
+import sys
 
 import nfldb
 
 import nflfan
 
-db = nfldb.connect()
-conf = nflfan.config()
-player_search = partial(nflfan.player_search, db)
 
-lg = conf['yahoo'][0]
-prov = nflfan.provider.Yahoo(lg)
+def log(*args, **kwargs):
+    kwargs['file'] = sys.stderr
+    print(*args, **kwargs)
 
-out = open(nflfan.json_path(prov.name), 'w+')
-print(prov.json(player_search, 3, fobj=out))
 
-# owners = prov.owners() 
-# roster = prov.roster(player_search, owners[7], 3) 
-# print(roster) 
+if __name__ == '__main__':
+    db = nfldb.connect()
+    conf = nflfan.load_config()
+    player_search = partial(nflfan.player_search, db)
+
+    _, _, current_week = nfldb.current(db)
+
+    parser = argparse.ArgumentParser(
+        description='Saves your fantasy football league data for the given '
+                    'week.',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    aa = parser.add_argument
+    aa('-w', '--week', type=int, default=current_week,
+       help='The week to update provider data for. If no week is given, '
+            'then the current week is used.')
+    args = parser.parse_args()
+    assert 1 <= args.week <= 17
+
+    for pname, leagues in conf.items():
+        for lg in leagues:
+            prov = lg['provider_class'](lg)
+
+            log('Updating %s... ' % prov.name, end='')
+            prov.save(player_search, args.week)
+            log('done.')
+
+    # out = open(nflfan.json_path(prov.name), 'w+') 
+    # print(prov.json(player_search, 3, fobj=out)) 
+
+    # owners = prov.owners() 
+    # roster = prov.roster(player_search, owners[7], 3) 
+    # print(roster) 
 

@@ -1,4 +1,4 @@
-from nflfan.config import config, json_path
+from nflfan.config import load_config, json_path
 from nflfan.provider import __pdoc__ as __provider_pdoc__
 from nflfan.provider import player_search
 from nflfan.provider import Matchup, Owner, Roster, RosterPlayer, PositionGroup
@@ -13,7 +13,7 @@ __pdoc__ = dict(__pdoc__, **__score_pdoc__)
 
 __all__ = [
     # nflfan.config
-    'config', 'json_path',
+    'load_config', 'json_path',
 
     # nflfan.provider
     'player_search',

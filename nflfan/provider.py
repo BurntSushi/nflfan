@@ -2,6 +2,7 @@ from __future__ import absolute_import, division, print_function
 from collections import namedtuple
 import functools
 import json
+import multiprocessing.pool
 import re
 
 import requests
@@ -9,6 +10,8 @@ import requests
 from bs4 import BeautifulSoup
 
 import nfldb
+
+import nflfan.config
 
 __pdoc__ = {}
 
@@ -261,7 +264,7 @@ class Provider (object):
     provider_name = None
     """The name of the provider used in the configuration file."""
 
-    conf_required = ['scoring', 'position_groups',
+    conf_required = ['provider_class', 'scoring', 'position_groups',
                      'league_name', 'season', 'league_id']
     """A list of fields required for every provider."""
 
@@ -298,7 +301,7 @@ class Provider (object):
         """
         assert False, 'subclass responsibility'
 
-    def json(self, player_search, week, fobj=None):
+    def save(self, player_search, week):
         """
         Returns a JSON encoding of all the owners, matchups and rosters
         for the given week. If `fobj` is not `None`, then the JSON
@@ -311,12 +314,19 @@ class Provider (object):
         """
         d = {
             'owners': self.owners(),
+            'matchups': self.matchups(week),
         }
-        if fobj is None:
-            return json.dumps(d, indent=2)
-        else:
-            json.dump(d, fobj, indent=2)
-            return None
+
+        # I'm hoping this doesn't hurt custom providers that don't need
+        # to do an IO to fetch a roster.
+        def roster(owner):
+            return self.roster(player_search, owner, week)
+
+        pool = multiprocessing.pool.ThreadPool(3)
+        d['rosters'] = pool.map(roster, d['owners'])
+
+        fp = nflfan.config.json_path(self.name + ('.%d' % week))
+        json.dump(d, open(fp, 'w+'), indent=2)
 
     @property
     def name(self):
@@ -457,5 +467,3 @@ class ESPN (Provider):
     provider_name = 'espn'
     conf_required = []
     conf_optional = []
-
-providers = [ESPN, Yahoo]
