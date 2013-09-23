@@ -100,6 +100,23 @@ class League (namedtuple('League',
     def full_name(self):
         return '%s.%s' % (self.prov_name, self.name)
 
+    def is_me(self, obj):
+        if not self.conf.get('me', None):
+            return False
+
+        if isinstance(obj, Roster):
+            return self.is_me(obj.owner)
+        elif isinstance(obj, Matchup):
+            return self.is_me(obj.owner1) or self.is_me(obj.owner2)
+        else:
+            return self.conf['me'].lower() in obj.name.lower()
+
+    def me(self, objs):
+        for obj in objs:
+            if self.is_me(obj):
+                return obj
+        return None
+
     def owners(self, week):
         return self._cached(week, 'owners')
 
@@ -351,7 +368,7 @@ class Provider (object):
                      'league_id']
     """A list of fields required for every provider."""
 
-    conf_optional = []
+    conf_optional = ['me']
     """A list of fields that are optional for every provider."""
 
     def owners(self):
