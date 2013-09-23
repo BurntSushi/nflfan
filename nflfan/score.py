@@ -61,7 +61,7 @@ def score_players(db, schema, players, phase=nfldb.Enums.season_phase.Regular):
         q.game(season_year=season, season_type=phase, week=week)
 
         # Tricky. Throw out all *plays* where `team` did not have possession
-        # (they're on defense), but only accept *player* statistics from 
+        # (they're on defense), but only accept *player* statistics from
         # players on the given team.
         q.play(pos_team__ne=team, team=team)
         return q.as_play_players()
