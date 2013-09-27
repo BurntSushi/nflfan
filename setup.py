@@ -14,7 +14,7 @@ except LookupError:
         return {True: enc}.get(name == 'mbcs')
     codecs.register(wrapper)
 
-install_requires = ['nfldb', 'rauth']
+install_requires = ['nfldb']
 try:
     import argparse
 except ImportError:
