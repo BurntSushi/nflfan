@@ -205,13 +205,13 @@ class Roster (namedtuple('Roster', 'owner season week players')):
         set of players on this roster.
         """
 
-    def new_player(self, pos, team, pgroup, bench, player):
+    def new_player(self, pos, team, pgroup, bench, player_id):
         """
         A convenience method for creating a new `nflfan.RosterPlayer`
         given the current roster.
         """
         return RosterPlayer(pos, team, pgroup, bench, self.season, self.week,
-                            False, 0.0, player)
+                            False, 0.0, None, player_id)
 
     @property
     def active(self):
@@ -254,7 +254,7 @@ class Roster (namedtuple('Roster', 'owner season week players')):
 class RosterPlayer (
     namedtuple('RosterPlayer',
                'position team group bench season week '
-               'playing points player_id')):
+               'playing points player player_id')):
     __pdoc__['RosterPlayer.position'] = \
         """
         A string corresponding to the position of the roster spot
@@ -286,6 +286,14 @@ class RosterPlayer (
     __pdoc__['RosterPlayer.points'] = \
         """The total fantasy points for this roster player."""
 
+    __pdoc__['RosterPlayer.player'] = \
+        """
+        A `nfldb.Player` object corresponding to this roster player.
+
+        This attribute is `None` by default, and is always `None` for
+        roster players corresponding to entire teams (e.g., defense).
+        """
+
     __pdoc__['RosterPlayer.player_id'] = \
         """
         A player id string corresponding to the player in this roster
@@ -297,24 +305,13 @@ class RosterPlayer (
     def id(self):
         return self.team if self.player_id is None else self.player_id
 
-    def player(self, db):
-        """
-        Given a database connection, return the `nfldb.Player`
-        corresponding to this roster player. If this is a defense, then
-        `None` is returned.
-
-        If no player can be found, then a `LookupError` is raised.
-        """
-        if self.player_id is None:
-            return None
-        p = nfldb.Player.from_id(db, self.player_id)
-        if p is None:
-            raise ValueError("Could not find player for %s" % self.player_id)
-        return p
+    @property
+    def name(self):
+        return self.id if self.player is None else self.player.full_name
 
     def __str__(self):
-        return '%-6s %-4s %0.2f %s (%s)' \
-               % (self.position, self.team, self.points, self.id, self.group)
+        return '%-6s %-4s %-20s %0.2f' \
+               % (self.position, self.team, self.name, self.points)
 
 
 @functools.total_ordering
