@@ -1,0 +1,103 @@
+/*
+ * Pandora:
+ * #091d42
+ * #396a92
+ * #9ab4cb
+ * #ecedf2
+ * #fdfdfd
+ */
+
+
+body {
+  background: #fdfdfd;
+  height: 100%;
+  font-family: sans-serif;
+}
+
+h1, h2, h3, h4 {
+  margin: 20px 0 5px 0;
+}
+
+p {
+  margin: 0 0 7px 0;
+}
+
+a, a:visited {
+  color: #4578AB;
+  font-weight: bold;
+}
+
+a:hover {
+  color: #AB8043;
+}
+
+.hide {
+  display: none;
+}
+
+#content {
+  margin: 0 100px;
+}
+
+#intro {
+  font-size: 120%;
+  margin-bottom: 30px;
+  width: 700px;
+}
+
+.prominent {
+  font-size: 140%;
+}
+
+#form_error {
+  background: #ffffcc;
+  border: 2px solid #888;
+  padding: 8px;
+  width: 700px;
+  margin-bottom: 10px;
+  font-size: 120%;
+}
+
+  #form_error h4 {
+    margin: 0 0 5px 0;
+    font-size: 115%;
+    color: #b00;
+  }
+
+form .field {
+  margin: 0 0 15px 10px
+}
+
+  form h2 {
+    margin-top: 40px;
+  }
+
+  form .field label {
+    display: inline-block;
+    width: 150px;
+    margin-right: 25px;
+    font-weight: bold;
+  }
+
+  form .field.opt label {
+    width: 280px;
+    font-weight: normal;
+  }
+
+    form .field label .desc {
+      font-size: 90%;
+      font-weight: normal;
+    }
+
+  form .field textarea {
+    width: 520px;
+    height: 400px;
+    font-family: monospace;
+  }
+
+  form .field input[type="text"] {
+    border: 1px solid #000;
+    padding: 4px;
+    font-family: monospace;
+  }
+
