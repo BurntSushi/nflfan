@@ -16,7 +16,7 @@ def tag_players(db, players):
     `nfldb.Player` object. (Except for roster players corresponding to
     an entire team, e.g., a defense.)
     """
-    ids = [p.player_id for p in players if p.player_id is not None]
+    ids = [p.player_id for p in players if p.is_player]
     q = nfldb.Query(db).player(player_id=ids)
     dbps = dict([(p.player_id, p) for p in q.as_players()])
     return [p._replace(player=dbps.get(p.player_id, None)) for p in players]
@@ -62,14 +62,8 @@ def score_players(db, schema, players, phase=nfldb.Enums.season_phase.Regular):
         return []
     season, week = players[0].season, players[0].week
 
-    def is_defense(player):
-        return player.player_id is None
-
     def player_query(ids):
-        q = nfldb.Query(db)
-        q.game(season_year=season, season_type=phase, week=week)
-        q.player(player_id=ids)
-        return q
+        return _game_query(db, players[0], phase=phase).player(player_id=ids)
 
     def play_players(ids):
         d = defaultdict(list)
@@ -77,19 +71,8 @@ def score_players(db, schema, players, phase=nfldb.Enums.season_phase.Regular):
             d[pp.player_id].append(pp)
         return d
 
-    def def_play_players(team):
-        q = nfldb.Query(db)
-        q.game(season_year=season, season_type=phase, week=week)
-
-        # Tricky. Throw out all *plays* where `team` did not have possession
-        # (they're on defense), but only accept *player* statistics from
-        # players on the given team.
-        q.play(pos_team__ne=team, team=team)
-        return q.as_play_players()
-
     def playing_statuses():
-        q = nfldb.Query(db)
-        q.game(season_year=season, season_type=phase, week=week)
+        q = _game_query(db, players[0], phase=phase)
 
         game_status = defaultdict(bool)
         for game in q.as_games():
@@ -99,30 +82,84 @@ def score_players(db, schema, players, phase=nfldb.Enums.season_phase.Regular):
         return game_status
 
     def tag(statuses, pps, rplayer):
-        if is_defense(rplayer):
-            pts = _score_defense_team(schema, def_play_players(rplayer.team))
+        if rplayer.is_empty:
+            return rplayer
+
+        if rplayer.is_defense:
+            pts = _score_defense_team(schema, db, rplayer, phase)
         else:
             pts = _score_player(schema, pps[rplayer.player_id])
         playing = statuses[rplayer.team]
         return rplayer._replace(playing=playing, points=pts)
 
-    pids = [p.player_id for p in players if not is_defense(p)]
+    pids = [p.player_id for p in players if p.is_player]
     pps = play_players(pids)
     statuses = playing_statuses()
     return map(functools.partial(tag, statuses, pps), players)
 
 
-def _score_defense_team(schema, pps):
+def _score_defense_team(schema, db, rplayer,
+                        phase=nfldb.Enums.season_phase.Regular):
     """
-    Given a list of `nfldb.PlayPlayer` objects corresponding to
-    defensive plays for a particular team, return the total fantasy
-    points in the list according to the `nflfan.ScoreSchema` given.
+    Given a defensive `nflfan.RosterPlayer`, a nfldb database
+    connection and a `nflfan.ScoreSchema`, return the total defensive
+    fantasy points for the team.
     """
+    assert rplayer.is_defense
+
+    q = _game_query(db, rplayer, phase=phase)
+    q.play(team=rplayer.team)
+    teampps = q.as_play_players()
+    if len(teampps) == 0:
+        return 0.0
+
     s = 0.0
     stats = lambda pp: _pp_stats(pp, _is_defense_stat)
-    for cat, v in itertools.chain(*map(stats, pps)):
+    for cat, v in itertools.chain(*map(stats, teampps)):
         s += schema.settings.get(cat, 0.0) * v
+
+    pa = _defense_points_allowed(schema, db, rplayer, phase=phase)
+    s += schema._pick_range_setting('defense_pa', pa)
     return s
+
+
+def _defense_points_allowed(schema, db, rplayer,
+                            phase=nfldb.Enums.season_phase.Regular):
+    """
+    Return the total number of points allowed by a defensive team
+    `nflfan.RosterPlayer`.
+    """
+    assert rplayer.is_defense
+
+    q = _game_query(db, rplayer, phase=phase)
+    game = q.game(team=rplayer.team).as_games()[0]
+    if rplayer.team == game.home_team:
+        pa = game.away_score
+    else:
+        pa = game.home_score
+
+    if schema.settings.get('defense_pa_style', '') == 'yahoo':
+        # It is simpler to think of PA in this case as subtracting certain
+        # point allocations from the total scored. More details here:
+        # http://goo.gl/t5YMFC
+        #
+        # Only get the player stats for defensive plays on the opposing
+        # side. Namely, the only points not in PA are points scored against
+        # rplayer's offensive unit.
+        q = _game_query(db, rplayer, phase=phase)
+        for play in q.play(pos_team=rplayer.team).as_plays():
+            if play.defense_safe > 0:
+                pa -= 2
+            elif play.defense_int_tds > 0:
+                pa -= 6
+            elif play.defense_frec_tds > 0:
+                pa -= 6
+            elif play.defense_misc_tds > 0 and play.kicking_fga > 0:
+                # "defense_misc_tds" is either a punt block return for TD or a
+                # field goal block return for TD. Apparently, punts are not
+                # made by the offensive unit but field goals are. WTF?
+                pa -= 6
+    return pa
 
 
 def _score_player(schema, pps):
@@ -131,40 +168,40 @@ def _score_player(schema, pps):
     fantasy points in the list according to the `nflfan.ScoreSchema`
     given.
     """
-    def pick_fg_setting(prefix, yds):
-        match_fg = re.compile('%s_([0-9]+)_([0-9]+)' % prefix)
-        for cat, point_val in schema.settings.items():
-            m = match_fg.match(cat)
-            if not m:
-                continue
-            start, end = int(m.group(1)), int(m.group(2))
-            if start <= yds <= end:
-                return point_val
-        return 0.0
-
     s = 0.0
-    stats = lambda pp: _pp_stats(pp, lambda cat: not _is_defense_stat(cat))
+    stats = lambda pp:  _pp_stats(pp, lambda cat: not _is_defense_stat(cat))
     for cat, v in itertools.chain(*map(stats, pps)):
         if cat == 'kicking_fgm_yds':
-            s += pick_fg_setting('kicking_fgm', v)
+            s += schema._pick_range_setting('kicking_fgm', v)
         if cat == 'kicking_fgmissed_yds':
-            s += pick_fg_setting('kicking_fgmissed', v)
+            s += schema._pick_range_setting('kicking_fgmissed', v)
         else:
             s += v * schema.settings.get(cat, 0.0)
+
+    if len(pps) > 0:
+        aggd = None  # Only aggregate if there are bonuses to apply.
+        for field, pts, start, end in schema._bonuses():
+            if aggd is None:
+                aggd = nfldb.aggregate(pps)[0]
+            if start <= getattr(aggd, field, 0.0) <= end:
+                s += pts
     return s
 
 
 def _pp_stats(pp, predicate=None):
-    for cat in nfldb.stat_categories:
+    for cat in pp.fields:
         if predicate is not None and not predicate(cat):
             continue
-        v = getattr(pp, cat, None)
-        if v is not None and v != 0:
-            yield (cat, float(v))
+        yield (cat, float(getattr(pp, cat)))
 
 
 def _is_defense_stat(name):
     return name.startswith('defense_')
+
+
+def _game_query(db, rp, phase=nfldb.Enums.season_phase.Regular):
+    q = nfldb.Query(db)
+    return q.game(season_year=rp.season, season_type=phase, week=rp.week)
 
 
 class ScoreSchema (namedtuple('ScoreSchema', 'name settings')):
@@ -177,3 +214,23 @@ class ScoreSchema (namedtuple('ScoreSchema', 'name settings')):
         interpretation of the point value depends on the scoring
         category.
         """
+
+    def _pick_range_setting(self, prefix, v):
+        match = re.compile('%s_([0-9]+)_([0-9]+)' % prefix)
+        for cat, point_val in self.settings.items():
+            m = match.match(cat)
+            if not m:
+                continue
+            start, end = int(m.group(1)), int(m.group(2))
+            if start <= v <= end:
+                return point_val
+        return 0.0
+
+    def _bonuses(self):
+        match = re.compile('^bonus_(.+)_([0-9]+)_([0-9]+)$')
+        for cat, pts in self.settings.items():
+            m = match.match(cat)
+            if not m:
+                continue
+            field, start, end = m.group(1), int(m.group(2)), int(m.group(3))
+            yield field, pts, start, end

@@ -221,6 +221,11 @@ class Roster (namedtuple('Roster', 'owner season week players')):
     def benched(self):
         return filter(lambda rp: rp.bench, self.players)
 
+    @property
+    def points(self):
+        """Returns the total number of points for non-benched players."""
+        return sum(p.points for p in self.players if not p.bench)
+
     def grouped(self, bench=True):
         """
         Returns a list of lists, where each list corresponds to only
@@ -302,16 +307,34 @@ class RosterPlayer (
         """
 
     @property
+    def is_empty(self):
+        return self.team is None and self.player_id is None
+
+    @property
+    def is_defense(self):
+        return self.team is not None and self.player_id is None
+
+    @property
+    def is_player(self):
+        return self.player_id is not None
+
+    @property
     def id(self):
-        return self.team if self.player_id is None else self.player_id
+        if self.is_empty:
+            return 'Empty'
+        elif self.is_defense:
+            return self.team
+        else:
+            return self.player_id
 
     @property
     def name(self):
-        return self.id if self.player is None else self.player.full_name
+        return self.id if not self.player else self.player.full_name
 
     def __str__(self):
-        return '%-6s %-4s %-20s %0.2f' \
-               % (self.position, self.team, self.name, self.points)
+        playing = '*' if self.playing else ' '
+        return '%-6s %-4s %-20s %s%0.2f' \
+               % (self.position, self.team, self.name, playing, self.points)
 
 
 @functools.total_ordering
@@ -414,7 +437,7 @@ class Provider (object):
         }
 
         # I'm hoping this doesn't hurt custom providers that don't need
-        # to do an IO to fetch a roster.
+        # to do IO to fetch a roster.
         def roster(owner):
             return self.roster(player_search, owner, week)
 
@@ -482,7 +505,10 @@ class Yahoo (Provider):
 
         def rplayer(r, name, team, pos):
             bench = pos == 'BN'
-            if nfldb.standard_team(name) != 'UNK':
+            if name is None and team is None:
+                pgroup = pos_group(pos)
+                return r.new_player(pos, None, pgroup, bench, None)
+            elif nfldb.standard_team(name) != 'UNK':
                 return r.new_player(pos, team, 'defense', bench, None)
             else:
                 player = player_search(name, team=team, position=pos)
@@ -497,8 +523,12 @@ class Yahoo (Provider):
         roster = Roster(owner, self._lg.season, week, [])
         for table in soup.find_all(id=match_table_id):
             for row in table.tbody.find_all('tr', recursive=False):
-                pos, team, name = to_pos(row), to_team(row), to_name(row)
-                roster.players.append(rplayer(roster, name, team, pos))
+                pos = to_pos(row)
+                try:
+                    team, name = to_team(row), to_name(row)
+                    roster.players.append(rplayer(roster, name, team, pos))
+                except AttributeError:
+                    roster.players.append(rplayer(roster, None, None, pos))
         return roster
 
     def _owner_id_from_url(self, url):
