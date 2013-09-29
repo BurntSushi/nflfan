@@ -32,18 +32,12 @@ if __name__ == '__main__':
 
     for pname, leagues in conf.items():
         for lg in leagues:
-            # scored = map(partial(nflfan.score_roster, db, lg.scoring), 
-                         # lg.rosters(args.week)) 
-            # for roster in scored: 
-                # print(roster.owner) 
-                # print(roster) 
-                # print('-' * 79) 
-
-            # players = [] 
-            # for roster in lg.rosters(args.week): 
-                # players += roster.players 
-            # nflfan.score_players(db, lg.scoring, players) 
-
             mine = lg.me(lg.rosters(args.week))
-            print(nflfan.score_roster(db, lg.scoring, mine))
+            if mine is None:
+                continue
 
+            mine = nflfan.score_roster(db, lg.scoring, mine)
+            print(lg.full_name)
+            print(mine)
+            print('Total: %0.2f' % mine.points)
+            print('-' * 79)
