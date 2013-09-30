@@ -65,40 +65,35 @@ def score_players(db, schema, players, phase=nfldb.Enums.season_phase.Regular):
     def player_query(ids):
         return _game_query(db, players[0], phase=phase).player(player_id=ids)
 
-    def play_players(ids):
-        d = defaultdict(list)
-        for pp in player_query(ids).as_play_players():
-            d[pp.player_id].append(pp)
-        return d
-
-    def playing_statuses():
+    def week_games():
         q = _game_query(db, players[0], phase=phase)
 
-        game_status = defaultdict(bool)
+        games = {}
         for game in q.as_games():
-            playing = game.is_playing
-            game_status[game.home_team] = playing
-            game_status[game.away_team] = playing
-        return game_status
+            games[game.home_team] = game
+            games[game.away_team] = game
+        return games
 
-    def tag(statuses, pps, rplayer):
-        if rplayer.is_empty:
-            return rplayer
+    def tag(games, pps, fgs, rp):
+        if rp.is_empty:
+            return rp
 
-        if rplayer.is_defense:
-            pts = _score_defense_team(schema, db, rplayer, phase)
+        if rp.is_defense:
+            g = games.get(rp.team, None)
+            pts = _score_defense_team(schema, db, g, rp, phase)
         else:
-            pts = _score_player(schema, pps[rplayer.player_id])
-        playing = statuses[rplayer.team]
-        return rplayer._replace(playing=playing, points=pts)
+            pts = _score_player(schema, pps.get(rp.player_id, None), fgs=fgs)
+        playing = games[rp.team].is_playing if rp.team in games else False
+        return rp._replace(playing=playing, points=pts)
 
+    games = week_games()
     pids = [p.player_id for p in players if p.is_player]
-    pps = play_players(pids)
-    statuses = playing_statuses()
-    return map(functools.partial(tag, statuses, pps), players)
+    fgs = _pp_field_goals(db, players, phase=phase)
+    pps = dict([(p.player_id, p) for p in player_query(pids).as_aggregate()])
+    return map(functools.partial(tag, games, pps, fgs), players)
 
 
-def _score_defense_team(schema, db, rplayer,
+def _score_defense_team(schema, db, game, rplayer,
                         phase=nfldb.Enums.season_phase.Regular):
     """
     Given a defensive `nflfan.RosterPlayer`, a nfldb database
@@ -106,10 +101,12 @@ def _score_defense_team(schema, db, rplayer,
     fantasy points for the team.
     """
     assert rplayer.is_defense
+    if game is None:
+        return 0.0
 
     q = _game_query(db, rplayer, phase=phase)
     q.play(team=rplayer.team)
-    teampps = q.as_play_players()
+    teampps = q.as_aggregate()
     if len(teampps) == 0:
         return 0.0
 
@@ -118,26 +115,24 @@ def _score_defense_team(schema, db, rplayer,
     for cat, v in itertools.chain(*map(stats, teampps)):
         s += schema.settings.get(cat, 0.0) * v
 
-    pa = _defense_points_allowed(schema, db, rplayer, phase=phase)
+    pa = _defense_points_allowed(schema, db, game, rplayer, phase=phase)
     s += schema._pick_range_setting('defense_pa', pa)
     return s
 
 
-def _defense_points_allowed(schema, db, rplayer,
+def _defense_points_allowed(schema, db, game, rplayer,
                             phase=nfldb.Enums.season_phase.Regular):
     """
     Return the total number of points allowed by a defensive team
     `nflfan.RosterPlayer`.
     """
     assert rplayer.is_defense
+    assert game is not None
 
-    q = _game_query(db, rplayer, phase=phase)
-    game = q.game(team=rplayer.team).as_games()[0]
     if rplayer.team == game.home_team:
         pa = game.away_score
     else:
         pa = game.home_score
-
     if schema.settings.get('defense_pa_style', '') == 'yahoo':
         # It is simpler to think of PA in this case as subtracting certain
         # point allocations from the total scored. More details here:
@@ -146,46 +141,65 @@ def _defense_points_allowed(schema, db, rplayer,
         # Only get the player stats for defensive plays on the opposing
         # side. Namely, the only points not in PA are points scored against
         # rplayer's offensive unit.
+        fg_blk_tds = nfldb.Query(db)
+        fg_blk_tds.play(defense_misc_tds=1, kicking_fga=1)
+        notcount = nfldb.QueryOR(db)
+        notcount.play(defense_safe=1, defense_int_tds=1, defense_frec_tds=1)
+        notcount.orelse(fg_blk_tds)
+
         q = _game_query(db, rplayer, phase=phase)
-        for play in q.play(pos_team=rplayer.team).as_plays():
-            if play.defense_safe > 0:
-                pa -= 2
-            elif play.defense_int_tds > 0:
-                pa -= 6
-            elif play.defense_frec_tds > 0:
-                pa -= 6
-            elif play.defense_misc_tds > 0 and play.kicking_fga > 0:
-                # "defense_misc_tds" is either a punt block return for TD or a
-                # field goal block return for TD. Apparently, punts are not
-                # made by the offensive unit but field goals are. WTF?
-                pa -= 6
+        q.play(gsis_id=game.gsis_id, team__ne=rplayer.team)
+        q.andalso(notcount)
+        for pp in q.as_aggregate():
+            pa -= 2 * pp.defense_safe
+            pa -= 6 * pp.defense_int_tds
+            pa -= 6 * pp.defense_frec_tds
+            pa -= 6 * pp.defense_misc_tds
     return pa
 
 
-def _score_player(schema, pps):
+def _score_player(schema, pp, fgs={}):
     """
-    Given a list of `nfldb.PlayPlayer` objects, return the total
-    fantasy points in the list according to the `nflfan.ScoreSchema`
-    given.
-    """
-    s = 0.0
-    stats = lambda pp:  _pp_stats(pp, lambda cat: not _is_defense_stat(cat))
-    for cat, v in itertools.chain(*map(stats, pps)):
-        if cat == 'kicking_fgm_yds':
-            s += schema._pick_range_setting('kicking_fgm', v)
-        if cat == 'kicking_fgmissed_yds':
-            s += schema._pick_range_setting('kicking_fgmissed', v)
-        else:
-            s += v * schema.settings.get(cat, 0.0)
+    Given a `nfldb.PlayPlayer` object, return the total fantasy points
+    according to the `nflfan.ScoreSchema` given.
 
-    if len(pps) > 0:
-        aggd = None  # Only aggregate if there are bonuses to apply.
-        for field, pts, start, end in schema._bonuses():
-            if aggd is None:
-                aggd = nfldb.aggregate(pps)[0]
-            if start <= getattr(aggd, field, 0.0) <= end:
-                s += pts
+    `fgs` should be a dictionary mapping player id to a list of
+    `nfldb.PlayPlayer`, where each describes a *single* field goal
+    `attempt.
+    """
+    if not pp:
+        return 0.0
+
+    s = 0.0
+    for cat, v in _pp_stats(pp, lambda cat: not _is_defense_stat(cat)):
+        s += v * schema.settings.get(cat, 0.0)
+    for field, pts, start, end in schema._bonuses():
+        if start <= getattr(pp, field, 0.0) <= end:
+            s += pts
+    for pp in fgs.get(pp.player_id, []):
+        for cat, v in _pp_stats(pp, lambda cat: cat.startswith('kicking_fg')):
+            if cat == 'kicking_fgm_yds':
+                s += schema._pick_range_setting('kicking_fgm', v)
+            if cat == 'kicking_fgmissed_yds':
+                s += schema._pick_range_setting('kicking_fgmissed', v)
     return s
+
+
+def _pp_field_goals(db, rplayers, phase=nfldb.Enums.season_phase.Regular):
+    """
+    Given a nfldb connection and a list of `nflfan.RosterPlayer` objects,
+    return a dictionary mapping player id to a list of `nfldb.PlaPlayer`,
+    where each describes a *single* field goal attempt.
+
+    This dictionary can be passed to `nflfan._score_player`.
+    """
+    if len(rplayers) == 0:
+        return {}
+    q = _game_query(db, rplayers[0], phase=phase).play(kicking_fga=1)
+    d = defaultdict(list)
+    for pp in q.as_play_players():
+        d[pp.player_id].append(pp)
+    return d
 
 
 def _pp_stats(pp, predicate=None):

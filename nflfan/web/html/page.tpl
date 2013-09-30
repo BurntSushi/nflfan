@@ -26,14 +26,17 @@
   <div id="content">
     % include
 
-    <ul id="leagues">
-    % for prov, leagues in conf.items():
-    %   for lg_name, lg in leagues.items():
-    %     u = url.fresh('league', prov=prov, league=lg_name)
-          <li><a href="{{ u }}">{{ lg.full_name }}</a></li>
-    %   end
-    % end
-    </ul>
+    <div id="leagues">
+      <h2>Your leagues</h2>
+      <ul>
+      % for prov, leagues in conf.items():
+      %   for lg_name, lg in leagues.items():
+      %     u = url.fresh('league', prov=prov, league=lg_name)
+            <li><a href="{{ u }}">{{ lg.full_name }}</a></li>
+      %   end
+      % end
+      </ul>
+    </div>
     % if not defined('notime'):
       <p style="margin-top: 30px;">Execution time: $exec_time$</p>
     % end

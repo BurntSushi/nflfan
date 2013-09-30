@@ -46,7 +46,14 @@ def static_js(name):
 def v_week(week=None):
     if week is None:
         _, _, week = nfldb.current(db)
-    return template('home')
+    lg_rosters = []
+    for lg in conf_leagues(conf):
+        mine = lg.me(lg.rosters(week))
+        if mine is None:
+            continue
+        mine = nflfan.score_roster(db, lg.scoring, mine)
+        lg_rosters.append((lg, mine))
+    return template('week', lg_rosters=lg_rosters)
 
 
 @bottle.get('/<prov>/<league>', name='league')
@@ -99,6 +106,12 @@ class url (object):  # Evil namespace trick.
     def qstr_fresh(**q):
         qt = urllib.quote
         return '&'.join('%s=%s' % (qt(k), qt(v)) for k, v in q.items() if v)
+
+
+def conf_leagues(conf):
+    for leagues in conf.values():
+        for lg in leagues.values():
+            yield lg
 
 
 def exec_time(cb):
