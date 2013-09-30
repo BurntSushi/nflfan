@@ -35,7 +35,7 @@ if __name__ == '__main__':
     assert 1 <= args.week <= 17
 
     for pname, leagues in conf.items():
-        for lg in leagues:
+        for lg in leagues.values():
             log('Updating %s... ' % lg.full_name, end='')
             prov = providers[lg.prov_name](lg)
             prov.save(lg.cache_path(args.week), player_search, args.week)

@@ -26,7 +26,17 @@
   <div id="content">
     % include
 
-    <p style="margin-top: 30px;">Execution time: $exec_time$</p>
+    <ul id="leagues">
+    % for prov, leagues in conf.items():
+    %   for lg_name, lg in leagues.items():
+    %     u = url.fresh('league', prov=prov, league=lg_name)
+          <li><a href="{{ u }}">{{ lg.full_name }}</a></li>
+    %   end
+    % end
+    </ul>
+    % if not defined('notime'):
+      <p style="margin-top: 30px;">Execution time: $exec_time$</p>
+    % end
   </div>
 </body>
 </html>

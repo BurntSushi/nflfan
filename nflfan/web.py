@@ -3,9 +3,11 @@ import os.path as path
 import time
 import urllib
 
+import bottle
+
 import nfldb
 
-import bottle
+import nflfan
 
 try:
     strtype = basestring
@@ -18,6 +20,9 @@ except NameError:
 # pool... *sigh*... Hasn't somebody solved this already? Suggestions please!
 db = None
 """A global database connection."""
+
+conf = None
+"""The nflfan configuration."""
 
 web_path = path.join(path.split(__file__)[0], 'web')
 """The absolute path of the directory containing web assets."""
@@ -37,13 +42,29 @@ def static_js(name):
 
 
 @bottle.get('/')
-def v_home():
-    return template('home', title='wat')
-
-
 @bottle.get('/<week:int>')
-def v_week(week):
+def v_week(week=None):
+    if week is None:
+        _, _, week = nfldb.current(db)
     return template('home')
+
+
+@bottle.get('/<prov>/<league>', name='league')
+@bottle.get('/<prov>/<league>/<week:int>', name='league_week')
+def v_league(prov, league, week=None):
+    if week is None:
+        _, _, week = nfldb.current(db)
+    if prov not in conf:
+        bottle.abort(404, "Provider %s does not exist." % prov)
+    if league not in conf[prov]:
+        bottle.abort(404, "League %s does not exist in provider %s."
+                          % (league, prov))
+    return template('league', league=conf[prov][league])
+
+
+@bottle.error(404)
+def v_404(error):
+    return template('error_404', message=error.output, notime=True)
 
 
 def builtin(f):
@@ -62,8 +83,9 @@ def template(*args, **kwargs):
 class url (object):  # Evil namespace trick.
     @staticmethod
     def fresh(rname, **kwargs):
-        q = kwargs.pop('qstr', [])
-        return (bottle.get_url(rname, **kwargs) + '?' + q).rstrip('?')
+        q = kwargs.pop('qstr', '')
+        app = bottle.default_app()
+        return (app.get_url(rname, **kwargs) + '?' + q).rstrip('?')
 
     @staticmethod
     def same(**q):
@@ -92,6 +114,10 @@ def exec_time(cb):
 if __name__ == '__main__':
     bottle.TEMPLATE_PATH.insert(0, path.join(web_path, 'html'))
     db = nfldb.connect()
+    conf = nflfan.load_config(providers=nflfan.builtin_providers)
+
+    builtins['db'] = db
+    builtins['conf'] = conf
 
     bottle.install(exec_time)
     bottle.run()
