@@ -56,7 +56,7 @@ def load_config(providers=builtin_providers, file_path=''):
     If no configuration file can be found, then an `IOError` is raised.
     """
     def prov_leagues(d):
-        return ((k, v) for k, v in d.items() if isinstance(v, dict))
+        return ((k, d[k]) for k in sorted(d.keys()) if isinstance(d[k], dict))
 
     schema = {
         'all': {
@@ -74,7 +74,8 @@ def load_config(providers=builtin_providers, file_path=''):
     pos_groups = merge(raw['position_groups'])
 
     conf = OrderedDict()
-    for pname, prov in raw.items():
+    for pname in sorted(raw.keys()):
+        prov = raw[pname]
         if pname in ('scoring', 'position_groups'):
             continue
 

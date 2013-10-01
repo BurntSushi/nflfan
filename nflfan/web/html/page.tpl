@@ -24,7 +24,9 @@
 </head>
 <body>
   <div id="content">
-    % include
+    <div class="clearfix">
+      % include
+    </div>
 
     <div id="leagues">
       <h2>Your leagues</h2>

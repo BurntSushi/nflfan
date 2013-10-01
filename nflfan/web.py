@@ -1,5 +1,6 @@
 from __future__ import absolute_import, division, print_function
 import os.path as path
+import re
 import time
 import urllib
 
@@ -20,6 +21,12 @@ except NameError:
 # pool... *sigh*... Hasn't somebody solved this already? Suggestions please!
 db = None
 """A global database connection."""
+
+season_year = None
+"""The current season."""
+
+season_type = 'Regular'
+"""The current phase of the season."""
 
 conf = None
 """The nflfan configuration."""
@@ -42,10 +49,10 @@ def static_js(name):
 
 
 @bottle.get('/')
-@bottle.get('/<week:int>')
-def v_week(week=None):
-    if week is None:
-        _, _, week = nfldb.current(db)
+def v_week():
+    week = get_week()
+    games = get_games(week)
+
     lg_rosters = []
     for lg in conf_leagues(conf):
         mine = lg.me(lg.rosters(week))
@@ -53,7 +60,10 @@ def v_week(week=None):
             continue
         mine = nflfan.score_roster(db, lg.scoring, mine)
         lg_rosters.append((lg, mine))
-    return template('week', lg_rosters=lg_rosters)
+    plays = plays_from_rosters([r for _, r in lg_rosters])
+
+    return template('week', games=games, week=week, lg_rosters=lg_rosters,
+                    plays=plays)
 
 
 @bottle.get('/<prov>/<league>', name='league')
@@ -72,6 +82,57 @@ def v_league(prov, league, week=None):
 @bottle.error(404)
 def v_404(error):
     return template('error_404', message=error.output, notime=True)
+
+
+@bottle.error(500)
+def v_500(error):
+    message = str(getattr(error, 'exception', 'Unknown error.'))
+    return template('error_500', message=message, notime=True)
+
+
+def get_games(week):
+    q = nfldb.Query(db)
+    q.game(season_year=season_year, season_type=season_type, week=week)
+    d = {}
+    for g in q.as_games():
+        d[g.gsis_id] = g
+        d[g.home_team] = g
+        d[g.away_team] = g
+    return d
+
+
+def get_week():
+    if 'week' not in bottle.request.query:
+        _, _, week = nfldb.current(db)
+        return week
+    week_str = bottle.request.query['week']
+    try:
+        week = int(week_str)
+        if week < 1 or week > 25:
+            bottle.abort(404, "Invalid week %d" % week)
+        return week
+    except ValueError:
+        bottle.abort(404, "Week %s is not an integer." % week_str)
+
+
+def plays_from_rosters(rosters):
+    if len(rosters) == 0:
+        return []
+
+    defenses, ids = set(), set()
+    for r in rosters:
+        for rp in r.players:
+            if rp.is_player:
+                ids.add(rp.player_id)
+            elif rp.is_defense:
+                defenses.add(rp.team)
+
+    q = nfldb.Query(db)
+    q.game(season_year=rosters[0].season, season_type=season_type,
+           week=rosters[0].week)
+    q.play(player_id=list(ids))
+    q.sort(['time_inserted', 'drive_id', 'play_id'])
+    return q.as_plays(fill=False)
 
 
 def builtin(f):
@@ -108,6 +169,27 @@ class url (object):  # Evil namespace trick.
         return '&'.join('%s=%s' % (qt(k), qt(v)) for k, v in q.items() if v)
 
 
+@builtin
+def game_str(games, id_or_team):
+    g = games.get(id_or_team, None)
+    if g is None:
+        return 'Unknown game'
+    return '%s (%d) at %s (%d)' \
+           % (g.home_team, g.home_score, g.away_team, g.away_score)
+
+
+@builtin
+def clean_play_desc(desc):
+    desc = re.sub('^\([0-9]+:[0-9]+\)\s+', '', desc)
+    desc = re.sub('^\([a-zA-Z]+\)\s+', '', desc)
+    return desc.strip()
+
+
+@builtin
+def incl(*args, **kwargs):
+    return template(*args, **kwargs)
+
+
 def conf_leagues(conf):
     for leagues in conf.values():
         for lg in leagues.values():
@@ -128,6 +210,8 @@ if __name__ == '__main__':
     bottle.TEMPLATE_PATH.insert(0, path.join(web_path, 'html'))
     db = nfldb.connect()
     conf = nflfan.load_config(providers=nflfan.builtin_providers)
+
+    _, season_year, _ = nfldb.current(db)
 
     builtins['db'] = db
     builtins['conf'] = conf

@@ -1,6 +1,6 @@
 % rebase page **globals()
 
-<h1>Your teams</h1>
+<h1>Your teams for week {{ week }}</h1>
 
 % if len(lg_rosters) == 0:
   <p class="error">
@@ -12,5 +12,9 @@
   % for lg, roster in lg_rosters:
   % include roster league=lg, roster=roster
   % end
+% end
+
+% if defined('plays'):
+{{! incl('play_table', games=games, plays=plays) }}
 % end
 
