@@ -68,9 +68,14 @@ table {
   border-right: 1px solid #000; border-bottom: 1px solid #000;
 }
 
+  table th, tr.total {
+    background: #FF924B;
+  }
+
   table th, table td {
     border-left: 1px solid #000; border-top: 1px solid #000;
     padding: 4px;
+    text-align: left;
   }
 
 .nowrap {
@@ -83,14 +88,6 @@ table {
   display: inline-block;
   vertical-align: top;
 }
-
-  .roster th, .roster td {
-    text-align: left;
-  }
-
-  .roster th, .roster tr.total {
-    background: #FF924B;
-  }
 
   .roster th p, .roster td p {
     margin: 0;
