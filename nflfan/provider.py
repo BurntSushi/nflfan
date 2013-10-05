@@ -32,6 +32,17 @@ _urls = {
                    'matchup?matchup_week=%d&ajaxrequest=1',
         'roster': 'http://football.fantasysports.yahoo.com/f1/%s/%s?week=%d',
     },
+    'espn': {
+        'owner': 'http://games.espn.go.com/ffl/leaguesetup'
+                 '/ownerinfo?leagueId=%s',
+        'matchup': 'http://games.espn.go.com/ffl/scoreboard?'
+                   'leagueId=%s&matchupPeriodId=%d',
+        'roster': 'http://games.espn.go.com/ffl/playertable/prebuilt/'
+                  'manageroster?leagueId=%s&teamId=%s&scoringPeriodId=%d'
+                  '&view=overview&context=clubhouse'
+                  '&ajaxPath=playertable/prebuilt/manageroster'
+                  '&managingIr=false&droppingPlayers=false&asLM=false',
+    },
 }
 
 
@@ -319,6 +330,10 @@ class RosterPlayer (
         return self.player_id is not None
 
     @property
+    def finished(self):
+        return not self.playing and self.points > 0
+
+    @property
     def id(self):
         if self.is_empty:
             return 'Empty'
@@ -391,6 +406,11 @@ class Provider (object):
     conf_optional = ['me']
     """A list of fields that are optional for every provider."""
 
+    def __init__(self, lg):
+        self._lg = lg
+        self._session = requests.Session()
+        self._session.headers.update(getattr(self, '_headers', {}))
+
     def owners(self):
         """Returns a list of `nflfan.Owner` objects."""
         assert False, 'subclass responsibility'
@@ -445,19 +465,50 @@ class Provider (object):
         d['rosters'] = pool.map(roster, d['owners'])
         json.dump(d, open(fp, 'w+'))
 
+    def _request(self, url):
+        r = self._session.get(url)
+        soup = BeautifulSoup(r.text)
+        if self._login_form(soup):
+            self._login()
+
+            r = self._session.get(url)
+            soup = BeautifulSoup(r.text)
+            if self._login_form(soup):
+                raise IOError("Authentication failure.")
+        return r
+
+    def _login(self):
+        assert self._login_url is not None
+        soup = BeautifulSoup(self._session.get(self._login_url).text)
+
+        if not self._login_form(soup):
+            # Already logged in!
+            return
+
+        form = self._login_form(soup)
+        params = self._login_params()
+        for inp in form.find_all('input', type='hidden'):
+            params[inp['name']] = inp['value']
+        r = self._session.post(form['action'], params=params)
+        return BeautifulSoup(r.text)
+
+    def _login_params(self):
+        assert False, 'subclass responsibility'
+
+    def _login_form(self, soup):
+        assert False, 'subclass responsibility'
+
 
 class Yahoo (Provider):
     provider_name = 'yahoo'
     conf_required = []
     conf_optional = ['username', 'password']
     _headers = {'User-Agent': _user_agent}
+    _login_url = 'https://login.yahoo.com/config/login'
 
     def __init__(self, lg):
-        self._lg = lg
+        super(Yahoo, self).__init__(lg)
         _, _, self._league_num = self._lg.ident.split('.')
-
-        self._session = requests.Session()
-        self._session.headers.update(Yahoo._headers)
 
     def owners(self):
         match_owner_link = re.compile('team-[0-9]+-name')
@@ -534,44 +585,21 @@ class Yahoo (Provider):
     def _owner_id_from_url(self, url):
         return re.search('%s/([0-9]+)' % self._league_num, url).group(1)
 
-    def _request(self, url):
-        r = self._session.get(url)
-        soup = BeautifulSoup(r.text)
-        if self._login_form(soup):
-            self._login()
-
-            r = self._session.get(url)
-            soup = BeautifulSoup(r.text)
-            if self._login_form(soup):
-                raise IOError("Authentication failure.")
-        return r
-
     def _login(self):
-        url = 'https://login.yahoo.com/config/login'
-        soup = BeautifulSoup(self._session.get(url).text)
-
-        if not self._login_form(soup):
-            # Already logged in!
-            return
-
-        form = self._login_form(soup)
-        params = {
-            'login': self._lg.conf['username'],
-            'passwd': self._lg.conf['password'],
-        }
-        params['.save'] = 'Sign In'
-        for inp in form.find_all('input', type='hidden'):
-            params[inp['name']] = inp['value']
-        r = self._session.post(form['action'], params=params)
-
-        soup = BeautifulSoup(r.text)
+        soup = super(Yahoo, self)._login()
         if self._login_form(soup):
-            print(soup.prettify().encode('utf-8'))
             err_div = soup.find('div', class_='yregertxt')
             err_msg = 'Unknown error.'
             if err_div:
                 err_msg = err_div.text.strip()
             raise IOError('Login failed: %s' % err_msg)
+
+    def _login_params(self):
+        return {
+            'login': self._lg.conf.get('username', ''),
+            'passwd': self._lg.conf.get('password', ''),
+            '.save': 'Sign In',
+        }
 
     def _login_form(self, soup):
         return soup.find(id='login_form')
@@ -580,4 +608,117 @@ class Yahoo (Provider):
 class ESPN (Provider):
     provider_name = 'espn'
     conf_required = []
-    conf_optional = []
+    conf_optional = ['username', 'password']
+    _headers = {'User-Agent': _user_agent}
+    _login_url = 'http://games.espn.go.com/ffl/signin?_=_'
+
+    def owners(self):
+        url = _urls['espn']['owner'] % self._lg.ident
+        soup = BeautifulSoup(self._request(url).text)
+        owners = []
+        for td in soup.select('tr.ownerRow td.teamName'):
+            ident = self._owner_id_from_url(td.a['href'])
+            owners.append(Owner(ident, td.text.strip()))
+        return owners
+
+    def matchups(self, week):
+        owner_id = self._owner_id_from_url
+
+        url = _urls['espn']['matchup'] % (self._lg.ident, week)
+        soup = BeautifulSoup(self._request(url).text)
+        matchupDiv = soup.find(id='scoreboardMatchups')
+        matchups = []
+        for table in matchupDiv.select('table.matchup'):
+            t1, t2 = list(table.find_all(class_='name'))
+            id1, id2 = owner_id(t1.a['href']), owner_id(t2.a['href'])
+            name1, name2 = t1.a.text.strip(), t2.a.text.strip()
+            o1, o2 = Owner(id1, name1), Owner(id2, name2)
+
+            matchups.append(Matchup(o1, o2))
+        return matchups
+
+    def roster(self, player_search, owner, week):
+        def to_pos(row):
+            pos = row.find(class_='playerSlot').text.strip().upper()
+            if pos == 'BENCH':
+                return 'BN'
+            return pos
+
+        def to_name(row):
+            name = row.find(class_='playertablePlayerName').a.text.strip()
+
+            # If this is the defense, apparently 'D/ST' is included in
+            # the name. Wtf?
+            return re.sub('\s+D/ST$', '', name)
+
+        def to_team(row):
+            tpos = row.find(class_='playertablePlayerName').a.next_sibling
+            tpos = tpos.strip(' \r\n\t*,|').upper()
+
+            # This is a little weird because the team name seems to run
+            # in with the position. Perhaps a weird encoding quirk?
+            if len(tpos) < 2:
+                return 'UNK'
+            elif len(tpos) == 2:
+                return nfldb.standard_team(tpos)
+            else:
+                team = nfldb.standard_team(tpos[0:3])
+                if team == 'UNK':
+                    team = nfldb.standard_team(tpos[0:2])
+                return team
+
+        def pos_group(pos):
+            if pos == nfldb.Enums.player_pos.K:
+                return 'kicking'
+            else:
+                return 'offense'
+
+        def rplayer(r, name, team, pos):
+            bench = pos == 'BN'
+            name_team = nfldb.standard_team(name)
+            if name is None and team is None:
+                pgroup = pos_group(pos)
+                return r.new_player(pos, None, pgroup, bench, None)
+            elif name_team != 'UNK':
+                return r.new_player(pos, name_team, 'defense', bench, None)
+            else:
+                player = player_search(name, team=team, position=pos)
+                pgroup = pos_group(player.position)
+                return r.new_player(pos, team, pgroup, bench, player.player_id)
+
+        url = _urls['espn']['roster'] % (self._lg.ident, owner.ident, week)
+        soup = BeautifulSoup(self._request(url).text)
+
+        roster = Roster(owner, self._lg.season, week, [])
+        for tr in soup.select('tr.pncPlayerRow'):
+            if tr.get('id', '') == 'pncEmptyRow':
+                continue
+            pos = to_pos(tr)
+            try:
+                team, name = to_team(tr), to_name(tr)
+                roster.players.append(rplayer(roster, name, team, pos))
+            except AttributeError:
+                roster.players.append(rplayer(roster, None, None, pos))
+        return roster
+
+    def _owner_id_from_url(self, url):
+        return re.search('teamId=([0-9]+)', url).group(1)
+
+    def _login(self):
+        soup = super(ESPN, self)._login()
+        if self._login_form(soup):
+            err_msg = []
+            for msg in soup.find_all('font', color='#ff0000'):
+                err_msg.append(msg.text.strip())
+            err_msg = '\n'.join(err_msg) if err_msg else 'Unknown error.'
+            raise IOError('Login failed: %s' % err_msg)
+
+    def _login_params(self):
+        return {
+            'username': self._lg.conf.get('username', ''),
+            'password': self._lg.conf.get('password', ''),
+            'submit': 'Sign In',
+        }
+
+    def _login_form(self, soup):
+        return soup.find('form', attrs={'name': 'loginForm'})

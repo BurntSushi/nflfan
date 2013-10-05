@@ -8,6 +8,8 @@
   % for player in roster.players:
     % if player.playing:
       <tr class="playing">
+    % elif player.finished:
+      <tr class="finished">
     % else:
       <tr>
     % end
