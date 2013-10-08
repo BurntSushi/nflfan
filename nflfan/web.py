@@ -8,6 +8,8 @@ import bottle
 
 import nfldb
 
+# import nflvid.vlc 
+
 import nflfan
 
 try:
@@ -48,22 +50,62 @@ def static_js(name):
     return bottle.static_file(name, root=path.join(web_path, 'js'))
 
 
+@bottle.get('/watch/<gsis_id>/<play_id>', name='watch')
+def v_watch(gsis_id, play_id):
+    q = nfldb.Query(db)
+    plays = q.play(gsis_id=gsis_id, play_id=play_id).as_plays()
+    if len(plays) == 0:
+        bottle.abort(404, "Play not found.")
+
+    # nflvid.vlc.watch(db, [plays[0]]) 
+    return 'success'
+
 @bottle.get('/')
 def v_week():
     week = get_week()
     games = get_games(week)
 
-    lg_rosters = []
-    for lg in conf_leagues(conf):
-        mine = lg.me(lg.rosters(week))
-        if mine is None:
-            continue
-        mine = nflfan.score_roster(db, lg.scoring, mine)
-        lg_rosters.append((lg, mine))
-    plays = plays_from_rosters([r for _, r in lg_rosters])
+    lgs, rosters = my_lg_rosters(week)
+    plays = plays_from_rosters(rosters)
 
-    return template('week', games=games, week=week, lg_rosters=lg_rosters,
-                    plays=plays)
+    if not query().getall('tags'):
+        bottle.request.query['tags'] = 'mine'
+    if not qget('limit'):
+        bottle.request.query['limit'] = 1000000
+
+    return template('week', games=games, week=week, plays=plays,
+                    leagues=lgs, rosters=rosters)
+
+@bottle.get('/plays')
+def v_plays():
+    week = get_week()
+    games = get_games(week)
+    lgs, rosters = my_lg_rosters(week)
+
+    q = nfldb.Query(db)
+    q.game(season_year=rosters[0].season, season_type=season_type,
+           week=rosters[0].week)
+    q.sort(['time_inserted', 'drive_id', 'play_id'])
+    plays = q.as_plays(fill=True)
+
+    return template('plays', games=games, week=week, plays=plays,
+                    rosters=rosters)
+
+
+@bottle.get('/play-table')
+def vbit_play_table():
+    week = get_week()
+    games = get_games(week)
+    lgs, rosters = my_lg_rosters(week)
+
+    q = nfldb.Query(db)
+    q.game(season_year=rosters[0].season, season_type=season_type,
+           week=rosters[0].week)
+    q.sort(['time_inserted', 'drive_id', 'play_id'])
+    plays = q.as_plays(fill=True)
+
+    return template('play_table', games=games, week=week, plays=plays,
+                    rosters=rosters)
 
 
 @bottle.get('/<prov>/<league>', name='league')
@@ -115,24 +157,29 @@ def get_week():
         bottle.abort(404, "Week %s is not an integer." % week_str)
 
 
+def my_lg_rosters(week):
+    lgs, rosters = [], []
+    for lg in conf_leagues(conf):
+        mine = lg.me(lg.rosters(week))
+        if mine is None:
+            continue
+        mine = nflfan.score_roster(db, lg.scoring, mine)
+        lgs.append(lg)
+        rosters.append(mine)
+    return lgs, rosters
+
+
 def plays_from_rosters(rosters):
     if len(rosters) == 0:
         return []
 
-    defenses, ids = set(), set()
-    for r in rosters:
-        for rp in r.players:
-            if rp.is_player:
-                ids.add(rp.player_id)
-            elif rp.is_defense:
-                defenses.add(rp.team)
-
+    _, ids = player_ids(rosters)
     q = nfldb.Query(db)
     q.game(season_year=rosters[0].season, season_type=season_type,
            week=rosters[0].week)
     q.play(player_id=list(ids))
     q.sort(['time_inserted', 'drive_id', 'play_id'])
-    return q.as_plays(fill=False)
+    return q.as_plays(fill=True)
 
 
 def builtin(f):
@@ -168,6 +215,20 @@ class url (object):  # Evil namespace trick.
         qt = urllib.quote
         return '&'.join('%s=%s' % (qt(k), qt(v)) for k, v in q.items() if v)
 
+    @staticmethod
+    def play(p):
+        return url.fresh('watch', gsis_id=p.gsis_id, play_id=p.play_id)
+
+
+@builtin
+def qget(field, default=None):
+    return bottle.request.query.get(field, default)
+
+
+@builtin
+def query():
+    return bottle.request.query
+
 
 @builtin
 def game_str(games, id_or_team):
@@ -176,6 +237,18 @@ def game_str(games, id_or_team):
         return 'Unknown game'
     return '%s (%d) at %s (%d)' \
            % (g.home_team, g.home_score, g.away_team, g.away_score)
+
+
+@builtin
+def player_ids(rosters):
+    defenses, ids = set(), set()
+    for r in rosters:
+        for rp in r.players:
+            if rp.is_player:
+                ids.add(rp.player_id)
+            elif rp.is_defense:
+                defenses.add(rp.team)
+    return defenses, ids
 
 
 @builtin
@@ -217,6 +290,6 @@ if __name__ == '__main__':
     builtins['conf'] = conf
 
     bottle.install(exec_time)
-    bottle.run()
+    bottle.run(host='0.0.0.0', port=8090)
 
     db.close()

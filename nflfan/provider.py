@@ -222,7 +222,7 @@ class Roster (namedtuple('Roster', 'owner season week players')):
         given the current roster.
         """
         return RosterPlayer(pos, team, pgroup, bench, self.season, self.week,
-                            False, 0.0, None, player_id)
+                            None, 0.0, None, player_id)
 
     @property
     def active(self):
@@ -270,7 +270,7 @@ class Roster (namedtuple('Roster', 'owner season week players')):
 class RosterPlayer (
     namedtuple('RosterPlayer',
                'position team group bench season week '
-               'playing points player player_id')):
+               'game points player player_id')):
     __pdoc__['RosterPlayer.position'] = \
         """
         A string corresponding to the position of the roster spot
@@ -296,8 +296,12 @@ class RosterPlayer (
     __pdoc__['Roster.week'] = \
         """The week number in which this roster was set."""
 
-    __pdoc__['RosterPlayer.playing'] = \
-        """Whether this player is playing in active game or not."""
+    __pdoc__['RosterPlayer.game'] = \
+        """
+        The `nfldb.Game` object for the game that this player played
+        in. If this roster position corresponds to a bye week, then
+        this attribute is set to `None`.
+        """
 
     __pdoc__['RosterPlayer.points'] = \
         """The total fantasy points for this roster player."""
@@ -330,10 +334,6 @@ class RosterPlayer (
         return self.player_id is not None
 
     @property
-    def finished(self):
-        return not self.playing and self.points > 0
-
-    @property
     def id(self):
         if self.is_empty:
             return 'Empty'
@@ -347,7 +347,10 @@ class RosterPlayer (
         return self.id if not self.player else self.player.full_name
 
     def __str__(self):
-        playing = '*' if self.playing else ' '
+        if self.game is not None and self.game.is_playing:
+            playing = '*'
+        else:
+            playing = ' '
         return '%-6s %-4s %-20s %s%0.2f' \
                % (self.position, self.team, self.name, playing, self.points)
 

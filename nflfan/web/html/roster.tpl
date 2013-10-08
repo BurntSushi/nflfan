@@ -6,17 +6,22 @@
     </th>
   </tr>
   % for player in roster.players:
-    % if player.playing:
-      <tr class="playing">
-    % elif player.finished:
-      <tr class="finished">
+    % if player.game is not None:
+      % if player.game.is_playing:
+        <tr class="playing">
+      % elif player.game.finished:
+        <tr class="finished">
+      % else:
+        <tr>
+      % end
     % else:
-      <tr>
+      <tr class="bye">
     % end
+
       <td>{{ player.position }}</td>
       <td>{{ player.team }}</td>
       <td>{{ player.name }}</td>
-      <td>{{ player.points }}</td>
+      <td class="points">{{ "BYE" if player.game is None else player.points }}</td>
     </tr>
   % end
   <tr class="total">

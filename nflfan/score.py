@@ -78,13 +78,12 @@ def score_players(db, schema, players, phase=nfldb.Enums.season_phase.Regular):
         if rp.is_empty:
             return rp
 
+        game = games.get(rp.team, None)
         if rp.is_defense:
-            g = games.get(rp.team, None)
-            pts = _score_defense_team(schema, db, g, rp, phase)
+            pts = _score_defense_team(schema, db, game, rp, phase)
         else:
             pts = _score_player(schema, pps.get(rp.player_id, None), fgs=fgs)
-        playing = games[rp.team].is_playing if rp.team in games else False
-        return rp._replace(playing=playing, points=pts)
+        return rp._replace(game=game, points=pts)
 
     games = week_games()
     pids = [p.player_id for p in players if p.is_player]

@@ -102,14 +102,39 @@ table {
     }
 
   .roster tr.playing {
-    background: #FF9595;
+    background: #ff9595;
     font-weight: bold;
   }
 
-  .roster tr.finished {
+  .roster tr.finished td.points {
     font-weight: bold;
+  }
+
+  .roster tr.bye td.points {
+    background: #dfdcdf;
   }
 
 .plays {
   margin-top: 30px;
 }
+
+  .plays .penalty {
+    background: #fff695;
+    font-weight: bold;
+  }
+
+  .plays .big {
+    background: #b5ff95;
+    font-weight: bold;
+  }
+
+  .plays .score {
+    background: #b5ff95;
+    font-weight: bold;
+    color: #b00;
+  }
+
+  .plays .mine {
+    background: #ff9595;
+    font-weight: bold;
+  }
