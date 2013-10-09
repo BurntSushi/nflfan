@@ -30,7 +30,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     assert 1 <= args.week <= 17
 
-    for leagues in conf.values():
+    for leagues in conf['leagues'].values():
         for lg in leagues.values():
             mine = lg.me(lg.rosters(args.week))
             if mine is None:

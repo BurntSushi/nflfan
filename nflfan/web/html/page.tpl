@@ -19,25 +19,70 @@
 	<link rel="stylesheet" href="/css/style.css">
 	<link rel="stylesheet" href="/css/print.css">
 
-  <script src="http://code.jquery.com/jquery-1.9.1.min.js"></script>
-  <!-- <script src="/js/results.js"></script> -->
+  <script src="/js/jquery.min.js"></script>
+  <script src="/js/jquery-ui.js"></script>
+  <script src="/js/jquery.form.js"></script>
+
+  <script src="/js/util.js"></script>
+  <script src="/js/play_table.js"></script>
+  % if conf.get('video_local', False):
+    <script src="/js/video_local.js"></script>
+  % else:
+    <script src="/js/video.js"></script>
+  % end
 </head>
 <body>
+  % if not conf.get('video_local', False):
+    <div id="vid">
+      <p><button>Close</button></p>
+      <video controls="controls" muted="muted" type="video/mp4">
+          Your browser does not support the video tag.
+      </video>
+    </div>
+  % end
+
   <div id="content">
     <div class="clearfix">
       % include
     </div>
 
-    <div id="leagues">
-      <h2>Your leagues</h2>
-      <ul>
-      % for prov, leagues in conf.items():
-      %   for lg_name, lg in leagues.items():
-      %     u = url.fresh('league', prov=prov, league=lg_name)
-            <li><a href="{{ u }}">{{ lg.full_name }}</a></li>
-      %   end
-      % end
-      </ul>
+    <div id="footer">
+
+      <!--
+      <div>
+        <h2>Your leagues</h2>
+        <ul>
+        % for prov, leagues in conf['leagues'].items():
+        %   for lg_name, lg in leagues.items():
+        %     u = url.fresh('league', prov=prov, league=lg_name)
+              <li><a href="{{ u }}">{{ lg.full_name }}</a></li>
+        %   end
+        % end
+        </ul>
+      </div>
+      -->
+
+      <div>
+        <h2>Navigation</h2>
+        <ul>
+          <li><a href="{{ url.fresh('week') }}">Current week</a></li>
+          <li><a href="{{ url.fresh('plays') }}">Plays around the league</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <h2>Week</h2>
+        <ul id="weeks">
+        % cweek = get_week()
+        % for i in xrange(1, 18):
+        %   if i == cweek:
+              <li class="current_week">{{ i }}</li>
+        %   else:
+              <li><a href="{{ url.same(week=i) }}">{{ i }}</a></li>
+        %   end
+        % end
+        </ul>
+      </div>
     </div>
     % if not defined('notime'):
       <p style="margin-top: 30px;">Execution time: $exec_time$</p>

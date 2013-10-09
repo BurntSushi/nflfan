@@ -34,7 +34,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     assert 1 <= args.week <= 17
 
-    for pname, leagues in conf.items():
+    for pname, leagues in conf['leagues'].items():
         for lg in leagues.values():
             log('Updating %s... ' % lg.full_name, end='')
             prov = providers[lg.prov_name](lg)

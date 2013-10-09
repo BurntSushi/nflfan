@@ -39,7 +39,7 @@ a:hover {
 }
 
 #content {
-  margin: 0 100px;
+  margin: 0 50px;
 }
 
 .prominent {
@@ -50,19 +50,44 @@ a:hover {
   font-size: 85%;
 }
 
-#leagues {
+#footer {
   margin: 30px 0 0 0;
   border-top: 2px solid #000;
-  padding-top: 10px;
+  padding-top: 15px;
 }
 
-  #leagues h2 {
+  #footer h2 {
     margin: 0;
   }
 
-  #leagues ul {
+  #footer div {
+    display: inline-block;
+    vertical-align: top;
+    padding-right: 15px;
+    margin-right: 15px;
+    border-right: 1px solid #000;
+    height: 100px;
+  }
+
+  #footer ul {
     margin: 0;
   }
+
+  #footer ul#weeks {
+    margin: 0;
+    padding: 0;
+  }
+
+    #footer ul#weeks li {
+      display: inline-block;
+      margin-right: 8px;
+      font-size: 120%;
+    }
+
+    #footer ul#weeks li.current_week {
+      font-size: 150%;
+      font-weight: bold;
+    }
 
 table {
   border-right: 1px solid #000; border-bottom: 1px solid #000;
@@ -71,6 +96,14 @@ table {
   table th, tr.total {
     background: #FF924B;
   }
+
+    table th a, tr.total a {
+      color: #000;
+    }
+
+    table th a:hover, tr.total a:hover {
+      color: #fff;
+    }
 
   table th, table td {
     border-left: 1px solid #000; border-top: 1px solid #000;
@@ -116,25 +149,104 @@ table {
 
 .plays {
   margin-top: 30px;
+  width: 100%;
 }
 
-  .plays .penalty {
+  .plays th .plays_title {
+    float: left;
+    margin: 0;
+  }
+
+  .plays th .plays_opts {
+    float: right;
+    margin: 0;
+  }
+
+  .plays th form {
+    display: none;
+    border: 1px solid #000;
+    background: #fff;
+    padding: 8px;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 250px;
+    font-weight: normal;
+  }
+
+    .plays th form input[type="text"] {
+      width: 100px;
+    }
+
+    .plays th form label {
+      display: inline-block;
+    }
+
+    .plays th form select {
+      font-size: 85%;
+    }
+
+  .plays td .play_desc {
+    float: left;
+  }
+
+  .plays td .video_link {
+    float: right;
+  }
+
+  .plays .penalty td:first-child {
     background: #fff695;
     font-weight: bold;
   }
 
-  .plays .big {
+  .plays .big td:first-child {
     background: #b5ff95;
     font-weight: bold;
   }
 
-  .plays .score {
-    background: #b5ff95;
-    font-weight: bold;
+  .plays .score td:last-child {
     color: #b00;
   }
 
-  .plays .mine {
+  .plays .bench td:first-child {
+    background: #ffcece;
+    font-weight: bold;
+  }
+
+  .plays .started td:first-child {
     background: #ff9595;
     font-weight: bold;
+  }
+
+.game_plays {
+  display: inline-block;
+  width: 500px;
+  height: 500px;
+  overflow-y: scroll;
+  margin-right: 30px;
+}
+
+  .game_plays .plays {
+    margin: 0;
+    border-right: 0;
+  }
+
+  .game_plays .nowrap {
+    white-space: normal;
+  }
+
+#vid {
+  display: none;
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  background: #ff924b;
+  padding: 8px;
+  border: 1px solid #000;
+}
+
+  #vid p {
+    text-align: right;
+    font-weight: bold;
+    font-size: 160%;
   }

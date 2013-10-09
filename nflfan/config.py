@@ -73,13 +73,16 @@ def load_config(providers=builtin_providers, file_path=''):
     scoring = merge(raw['scoring'])
     pos_groups = merge(raw['position_groups'])
 
-    conf = OrderedDict()
+    conf = {'leagues': OrderedDict()}
     for pname in sorted(raw.keys()):
         prov = raw[pname]
         if pname in ('scoring', 'position_groups'):
             continue
+        if not isinstance(prov, dict):
+            conf[pname] = prov
+            continue
 
-        conf[pname] = OrderedDict()
+        conf['leagues'][pname] = OrderedDict()
         for lg_name, lg in prov_leagues(prov):
             lg['league_name'] = lg_name
             lg['provider_class'] = providers[pname]
@@ -87,7 +90,7 @@ def load_config(providers=builtin_providers, file_path=''):
 
             lg = provider.League(lg['season'], lg['league_id'], pname, lg_name,
                                  lg['scoring'], lg['position_groups'], lg)
-            conf[pname][lg_name] = lg
+            conf['leagues'][pname][lg_name] = lg
     return conf
 
 

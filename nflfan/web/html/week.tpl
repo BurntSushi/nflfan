@@ -15,6 +15,6 @@
 % end
 
 % if defined('plays'):
-{{! incl('play_table', games=games, plays=plays, rosters=rosters) }}
+{{! incl('play_table', week=week, games=games, plays=plays, rosters=rosters, auto_update=auto_update) }}
 % end
 

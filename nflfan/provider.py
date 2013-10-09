@@ -290,10 +290,10 @@ class RosterPlayer (
     __pdoc__['RosterPlayer.bench'] = \
         """A boolean indicating whether this is a bench position or not."""
 
-    __pdoc__['Roster.season'] = \
+    __pdoc__['RosterPlayer.season'] = \
         """The year of the corresponding NFL season."""
 
-    __pdoc__['Roster.week'] = \
+    __pdoc__['RosterPlayer.week'] = \
         """The week number in which this roster was set."""
 
     __pdoc__['RosterPlayer.game'] = \
