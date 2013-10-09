@@ -19,6 +19,24 @@
 	<link rel="stylesheet" href="/css/style.css">
 	<link rel="stylesheet" href="/css/print.css">
 
+  <script type="text/javascript">
+  % if conf.get('footage_pbp_url', ''):
+    footage_pbp_url = "{{ conf['footage_pbp_url'] }}";
+    function make_vid_url(gsis_id, play_id) {
+      var splay = play_id.toString();
+      if (splay.length < 4) {
+        splay = Array(1 + (4 - splay.length)).join("0") + splay;
+      }
+      return '{0}/{1}/{2}.mp4'.format(footage_pbp_url, gsis_id, splay);
+    }
+  % else:
+    footage_pbp_url = "/vid";
+    function make_vid_url(gsis_id, play_id) {
+      return '{0}/{1}/{2}'.format(footage_pbp_url, gsis_id, play_id);
+    }
+  % end
+  </script>
+
   <script src="/js/jquery.min.js"></script>
   <script src="/js/jquery-ui.js"></script>
   <script src="/js/jquery.form.js"></script>
@@ -32,6 +50,10 @@
   % end
 </head>
 <body>
+  % if conf.get('message', ''):
+    <p id="message">{{ conf['message'] }}</p>
+  % end
+
   % if not conf.get('video_local', False):
     <div id="vid">
       <p><button>Close</button></p>

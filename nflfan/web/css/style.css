@@ -94,7 +94,7 @@ table {
 }
 
   table th, tr.total {
-    background: #FF924B;
+    background: #ffb789;
   }
 
     table th a, tr.total a {
@@ -250,3 +250,9 @@ table {
     font-weight: bold;
     font-size: 160%;
   }
+
+#message {
+  color: #b00;
+  font-weight: bold;
+  font-size: 150%;
+}

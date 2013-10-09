@@ -53,6 +53,9 @@ def static_js(name):
 
 @bottle.get('/vid/<gsis_id:int>/<play_id:int>')
 def static_vid(gsis_id, play_id):
+    if conf.get('video_local', False):
+        bottle.abort(500, "Only local video playing is supported.")
+
     pbp_path = conf.get('footage_pbp_path', '')
     play_path = nflvid.footage_play(pbp_path, str(gsis_id), play_id)
     if play_path is None:
@@ -63,6 +66,9 @@ def static_vid(gsis_id, play_id):
 
 @bottle.get('/watch/<gsis_id>/<play_id>', name='watch')
 def v_watch(gsis_id, play_id):
+    if not conf.get('video_local', False):
+        bottle.abort(500, "Local video player disabled.")
+
     q = nfldb.Query(db)
     plays = q.play(gsis_id=gsis_id, play_id=play_id).as_plays()
     if len(plays) == 0:
@@ -246,6 +252,8 @@ def get_week():
 
 @builtin
 def play_video_exists(p):
+    if conf.get('footage_pbp_url', ''):
+        return True  # This sucks. But what are we to do?
     pbp_path = conf.get('footage_pbp_path', '')
     return nflvid.footage_play(pbp_path, p.gsis_id, p.play_id) is not None
 
