@@ -1,8 +1,9 @@
 function hide_player() {
     var $vid = $('#vid video');
     $vid.get(0).pause();
-    $vid.removeAttr('src');
-    $('#vid').slideUp();
+    $('#vid').slideUp('fast', function() {
+        $vid.removeAttr('src');
+    });
 }
 
 function watch_play(gsis_id, play_id) {
@@ -16,7 +17,7 @@ function watch_play(gsis_id, play_id) {
     $vid.attr('src', url);
     vid.load();
     $('#vid').slideDown('fast', function() {
-        window.setTimeout(function() { vid.play(); }, 1000);
+        window.setTimeout(function() { vid.play(); }, 500);
     });
 }
 

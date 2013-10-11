@@ -1,32 +1,49 @@
-<div class="roster"><table cellspacing="0" cellpadding="0">
+% auto = 'yes' if defined('auto_update') and auto_update else 'no'
+% update = url.fresh('roster', prov=league.prov_name, league=league.name, qstr=url.qstr())
+<div class="roster" data-auto-update="{{ auto }}" data-update-url="{{ update }}">
+ <table cellspacing="0" cellpadding="0">
   <tr>
     <th colspan="4">
       <p>{{ roster.owner.name }}</p>
       <p class="small">{{ league.full_name }} :: week {{ roster.week }}</p>
     </th>
   </tr>
-  % for player in roster.players:
+  % for player in sorted(roster.players, key=lambda rp: rp.bench):
+    % classes = []
     % if player.game is not None:
       % if player.game.is_playing:
-        <tr class="playing">
+      %   classes.append('playing')
       % elif player.game.finished:
-        <tr class="finished">
-      % else:
-        <tr>
+      %   classes.append('finished')
       % end
     % else:
-      <tr class="bye">
+    %   classes.append('bye')
+    % end
+    % if player.bench:
+    %   classes.append('bench')
+    % else:
+    %   classes.append('starter')
     % end
 
-      <td>{{ player.position }}</td>
+    <tr class="{{ ' '.join(classes) }}">
+      <td>
+        {{ player.position }}
+        % if player.bench:
+          ({{ player.player.position if player.player else 'DEF' }})
+        % end
+      </td>
       <td>{{ player.team }}</td>
       <td>{{ player.name }}</td>
       <td class="points">{{ "BYE" if player.game is None else player.points }}</td>
     </tr>
   % end
   <tr class="total">
-    <td colspan="3">Total:</td>
+    <td colspan="3">
+      <a href="#" data-show="Show bench" data-hide="Hide bench">Show bench</a>
+      <p>Total:</p>
+    </td>
     <td>{{ roster.points }}</td>
   </tr>
-</table></div>
+ </table>
+</div>
 

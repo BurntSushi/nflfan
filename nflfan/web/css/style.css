@@ -97,11 +97,11 @@ table {
     background: #ffb789;
   }
 
-    table th a, tr.total a {
+    table th a, table tr.total a {
       color: #000;
     }
 
-    table th a:hover, tr.total a:hover {
+    table th a:hover, table tr.total a:hover {
       color: #fff;
     }
 
@@ -126,12 +126,22 @@ table {
     margin: 0;
   }
 
+  .roster tr.bench {
+    display: none;
+  }
+
   .roster tr.total {
     font-weight: bold;
   }
 
-    .roster tr.total td:first-child {
-      text-align: right;
+    .roster tr.total td:first-child a {
+      float: left;
+      margin: 0;
+    }
+
+    .roster tr.total td:first-child p {
+      float: right;
+      margin: 0;
     }
 
   .roster tr.playing {
@@ -160,6 +170,10 @@ table {
   .plays th .plays_opts {
     float: right;
     margin: 0;
+  }
+
+  .plays th a {
+    color: #000;
   }
 
   .plays th form {
@@ -223,7 +237,7 @@ table {
   width: 500px;
   height: 500px;
   overflow-y: scroll;
-  margin-right: 30px;
+  margin: 0 30px 20px 0;
 }
 
   .game_plays .plays {

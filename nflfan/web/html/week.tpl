@@ -10,7 +10,7 @@
   </p>
 % else:
   % for lg, roster in zip(leagues, rosters):
-  % include roster league=lg, roster=roster
+      {{! incl('roster', league=lg, roster=roster) }}
   % end
 % end
 

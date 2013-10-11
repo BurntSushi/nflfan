@@ -36,15 +36,8 @@ if __name__ == '__main__':
 
     for pname, leagues in conf['leagues'].items():
         for lg in leagues.values():
-            log('Updating %s... ' % lg.full_name, end='')
+            log('Updating %s (week %d)...' % (lg.full_name, args.week), end='')
             prov = providers[lg.prov_name](lg)
             prov.save(lg.cache_path(args.week), player_search, args.week)
             log('done.')
-
-    # out = open(nflfan.json_path(prov.name), 'w+') 
-    # print(prov.json(player_search, 3, fobj=out)) 
-
-    # owners = prov.owners() 
-    # roster = prov.roster(player_search, owners[7], 3) 
-    # print(roster) 
 

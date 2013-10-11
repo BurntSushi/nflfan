@@ -95,14 +95,39 @@ def v_week():
                     auto_update=auto_update,
                     rosters=rosters, plays=plays_from_tags(week, rosters))
 
+
+@bottle.get('/roster/<prov>/<league>', name='roster')
+def v_roster(prov, league):
+    if prov not in conf['leagues']:
+        bottle.abort(404, "Provider %s does not exist." % prov)
+    if league not in conf['leagues'][prov]:
+        bottle.abort(404, "League %s does not exist in provider %s."
+                          % (league, prov))
+    week = get_week()
+    _, _, cweek = nfldb.current(db)
+    auto_update = week == cweek
+
+    lg = conf['leagues'][prov][league]
+    mine = lg.me(lg.rosters(week))
+    if mine is None:
+        bottle.abort(404, 'No leagues belonging to you.')
+
+    roster = nflfan.score_roster(db, lg.scoring, mine)
+    return template('roster', league=lg, roster=roster,
+                    auto_update=auto_update)
+
 @bottle.get('/plays', name='plays')
 def v_plays():
     week = get_week()
     games = get_games(week)
     lgs, rosters = my_lg_rosters(week)
 
-    game_order = list(set(g.gsis_id for g in games.values()))
-    game_order = sorted(game_order, key=lambda gid: (games[gid].is_playing, gid))
+    def show(gid):
+        return games[gid].finished or games[gid].is_playing
+
+    game_order = filter(show, list(set(g.gsis_id for g in games.values())))
+    game_order = sorted(game_order,
+                        key=lambda gid: (not games[gid].is_playing, gid))
     game_plays = {}
 
     for gid in game_order:
@@ -139,7 +164,7 @@ def v_league(prov, league, week=None):
     if league not in conf[prov]:
         bottle.abort(404, "League %s does not exist in provider %s."
                           % (league, prov))
-    return template('league', league=conf[prov][league])
+    return template('league', league=conf['leagues'][prov][league])
 
 
 @bottle.error(404)

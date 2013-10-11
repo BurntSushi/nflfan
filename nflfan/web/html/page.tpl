@@ -43,6 +43,7 @@
 
   <script src="/js/util.js"></script>
   <script src="/js/play_table.js"></script>
+  <script src="/js/roster.js"></script>
   % if conf.get('video_local', False):
     <script src="/js/video_local.js"></script>
   % else:
