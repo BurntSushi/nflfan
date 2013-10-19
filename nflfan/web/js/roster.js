@@ -44,9 +44,11 @@ $(document).ready(function() {
             attach();
         }
 
-        window.setInterval(function() {
-            $.get($roster.data('update-url'), update);
-        }, 5000);
+        if ($roster.data('auto-update') == 'yes') {
+            window.setInterval(function() {
+                $.get($roster.data('update-url'), update);
+            }, 10000);
+        }
 
         attach();
     });

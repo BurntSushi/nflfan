@@ -33,7 +33,7 @@
         % end
       </td>
       <td>{{ player.team }}</td>
-      <td>{{ player.name }} <br /> {{ player.player_id }}</td>
+      <td>{{ player.name }}</td>
       <td class="points">
       % if player.game is None:
         BYE
