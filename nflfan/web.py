@@ -96,26 +96,6 @@ def v_week():
                     rosters=rosters, plays=plays_from_tags(week, rosters))
 
 
-@bottle.get('/roster/<prov>/<league>', name='roster')
-def v_roster(prov, league):
-    if prov not in conf['leagues']:
-        bottle.abort(404, "Provider %s does not exist." % prov)
-    if league not in conf['leagues'][prov]:
-        bottle.abort(404, "League %s does not exist in provider %s."
-                          % (league, prov))
-    week = get_week()
-    _, _, cweek = nfldb.current(db)
-    auto_update = week == cweek
-
-    lg = conf['leagues'][prov][league]
-    mine = lg.me(lg.rosters(week))
-    if mine is None:
-        bottle.abort(404, 'No leagues belonging to you.')
-
-    roster = nflfan.score_roster(db, lg.scoring, mine)
-    return template('roster', league=lg, roster=roster,
-                    auto_update=auto_update)
-
 @bottle.get('/plays', name='plays')
 def v_plays():
     week = get_week()
@@ -144,6 +124,30 @@ def v_plays():
                     plays=plays_from_tags(week, rosters))
 
 
+@bottle.get('/details/<prov>/<league>/<player_id>', name='details')
+def vbit_details(prov, league, player_id):
+    if prov not in conf['leagues']:
+        bottle.abort(404, "Provider %s does not exist." % prov)
+    if league not in conf['leagues'][prov]:
+        bottle.abort(404, "League %s does not exist in provider %s."
+                          % (league, prov))
+    week = get_week()
+    lg = conf['leagues'][prov][league]
+    mine = lg.me(lg.rosters(week))
+    if mine is None:
+        bottle.abort(404, 'No leagues belonging to you.')
+
+    q = nfldb.Query(db)
+    q.game(season_year=season_year, season_type=season_type, week=week)
+    pp = q.play(player_id=player_id).as_aggregate()
+    if not pp:
+        bottle.abort(404, "No stats found for player.")
+    pp = pp[0]
+
+    details = nflfan.score_details(lg.scoring, pp, {})
+    return template('details', details=details)
+
+
 @bottle.get('/play-table', name='play-table')
 def vbit_play_table():
     week = get_week()
@@ -152,6 +156,27 @@ def vbit_play_table():
 
     return template('play_table', games=games, week=week, rosters=rosters,
                     plays=plays_from_tags(week, rosters))
+
+
+@bottle.get('/roster/<prov>/<league>', name='roster')
+def vbit_roster(prov, league):
+    if prov not in conf['leagues']:
+        bottle.abort(404, "Provider %s does not exist." % prov)
+    if league not in conf['leagues'][prov]:
+        bottle.abort(404, "League %s does not exist in provider %s."
+                          % (league, prov))
+    week = get_week()
+    _, _, cweek = nfldb.current(db)
+    auto_update = week == cweek
+
+    lg = conf['leagues'][prov][league]
+    mine = lg.me(lg.rosters(week))
+    if mine is None:
+        bottle.abort(404, 'No leagues belonging to you.')
+
+    roster = nflfan.score_roster(db, lg.scoring, mine)
+    return template('roster', league=lg, roster=roster,
+                    auto_update=auto_update)
 
 
 @bottle.get('/<prov>/<league>', name='league')

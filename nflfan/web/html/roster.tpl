@@ -33,8 +33,16 @@
         % end
       </td>
       <td>{{ player.team }}</td>
-      <td>{{ player.name }}</td>
-      <td class="points">{{ "BYE" if player.game is None else player.points }}</td>
+      <td>{{ player.name }} <br /> {{ player.player_id }}</td>
+      <td class="points">
+      % if player.game is None:
+        BYE
+      % else:
+        <a href="#"
+           data-details-url="{{ url.fresh('details', prov=league.prov_name, league=league.name, player_id=player.player_id) }}"
+         >{{ player.points }}</a>
+      % end
+      </td>
     </tr>
   % end
   <tr class="total">

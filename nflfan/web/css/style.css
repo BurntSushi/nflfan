@@ -249,6 +249,30 @@ table {
     white-space: normal;
   }
 
+#score_details {
+  display: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  border: 1px solid #000;
+  padding: 8px;
+  background: #fff;
+}
+
+
+    #score_details th, #score_details td {
+      padding: 4px 20px 4px 4px;
+      text-align: left;
+    }
+
+    #score_details th {
+      font-weight: bold;
+    }
+
+    #score_details tr.dtotal {
+      font-weight: bold;
+    }
+
 #vid {
   display: none;
   position: fixed;

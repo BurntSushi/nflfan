@@ -64,6 +64,8 @@
     </div>
   % end
 
+  <div id="score_details"></div>
+
   <div id="content">
     <div class="clearfix">
       % include

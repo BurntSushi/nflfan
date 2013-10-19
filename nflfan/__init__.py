@@ -5,7 +5,8 @@ from nflfan.provider import League
 from nflfan.provider import Matchup, Owner, Roster, RosterPlayer, PositionGroup
 from nflfan.provider import Provider, Yahoo, ESPN
 from nflfan.score import __pdoc__ as __score_pdoc__
-from nflfan.score import score_roster, score_players, tag_players
+from nflfan.score import score_details, score_roster, score_players
+from nflfan.score import tag_players
 from nflfan.score import ScoreSchema
 
 __pdoc__ = {}
@@ -23,6 +24,6 @@ __all__ = [
     'Provider', 'Yahoo', 'ESPN',
 
     # nflfan.score
-    'score_roster', 'score_players', 'tag_players',
+    'score_details', 'score_roster', 'score_players', 'tag_players',
     'ScoreSchema',
 ]

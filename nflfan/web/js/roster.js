@@ -1,6 +1,7 @@
 $(document).ready(function() {
     $('.roster').each(function() {
         var $roster = $(this);
+        var $sdeets = $('#score_details');
 
         function attach() {
             $roster.find('tr.total a').click(function(ev) {
@@ -13,6 +14,20 @@ $(document).ready(function() {
                     $roster.find('tr.bench').hide();
                     $a.text($a.data('show'));
                 }
+            });
+            $roster.find('td.points a').click(function(ev) {
+                $a = $(this);
+                ev.preventDefault();
+                $.get($a.data('details-url'), function(data, s, xhr) {
+                    $data = $(data);
+                    $sdeets.html($data.html());
+                    viewable_show($sdeets, ev);
+
+                    $sdeets.find('a').click(function(ev) {
+                        ev.preventDefault();
+                        viewable_hide($sdeets, ev);
+                    });
+                });
             });
         }
 
@@ -31,7 +46,7 @@ $(document).ready(function() {
 
         window.setInterval(function() {
             $.get($roster.data('update-url'), update);
-        }, 10000);
+        }, 5000);
 
         attach();
     });

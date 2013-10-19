@@ -115,7 +115,8 @@ def _score_defense_team(schema, db, game, rplayer,
         s += schema.settings.get(cat, 0.0) * v
 
     pa = _defense_points_allowed(schema, db, game, rplayer, phase=phase)
-    s += schema._pick_range_setting('defense_pa', pa)
+    pacat = schema._pick_range_setting('defense_pa', pa)
+    s += schema.settings.get(pacat, 0.0)
     return s
 
 
@@ -157,6 +158,39 @@ def _defense_points_allowed(schema, db, game, rplayer,
     return pa
 
 
+def score_details(schema, pp, fgs={}):
+    """
+    Given an nfldb database connection, a `nflfan.ScoreSchema` and
+    a `nfldb.PlayPlayer` object, return a dictionary mapping the name of
+    a score statistic to a tuple of statistic and total point value
+    corresponding to the statistics in `pp`.
+
+    `fgs` should be a dictionary mapping player id to a list of
+    `nfldb.PlayPlayer`, where each describes a *single* field goal
+    `attempt.
+    """
+    def add(d, cat, stat, pts):
+        if pts == 0:
+            return
+        d[cat] = (stat, pts)
+
+    d = {}
+    for cat, v in _pp_stats(pp, lambda cat: not _is_defense_stat(cat)):
+        add(d, cat, v, v * schema.settings.get(cat, 0.0))
+    for field, pts, start, end in schema._bonuses():
+        v = getattr(pp, field, 0.0)
+        if start <= v <= end:
+            add(d, field, v, pts)
+    for pp in fgs.get(pp.player_id, []):
+        for cat, v in _pp_stats(pp, lambda cat: cat.startswith('kicking_fg')):
+            if cat in ('kicking_fgm_yds', 'kicking_fgmissed_yds'):
+                prefix = re.sub('_yds$', '', cat)
+                scat = schema._pick_range_setting(prefix, v)
+                if scat is not None:
+                    add(d, scat, v, v * schema.settings.get(scat, 0.0))
+    return d
+
+
 def _score_player(schema, pp, fgs={}):
     """
     Given a `nfldb.PlayPlayer` object, return the total fantasy points
@@ -177,10 +211,11 @@ def _score_player(schema, pp, fgs={}):
             s += pts
     for pp in fgs.get(pp.player_id, []):
         for cat, v in _pp_stats(pp, lambda cat: cat.startswith('kicking_fg')):
-            if cat == 'kicking_fgm_yds':
-                s += schema._pick_range_setting('kicking_fgm', v)
-            if cat == 'kicking_fgmissed_yds':
-                s += schema._pick_range_setting('kicking_fgmissed', v)
+            if cat in ('kicking_fgm_yds', 'kicking_fgmissed_yds'):
+                prefix = re.sub('_yds$', '', cat)
+                score_cat = schema._pick_range_setting(prefix, v)
+                if score_cat is not None:
+                    s += v * schema.settings.get(score_cat, 0.0)
     return s
 
 
@@ -230,14 +265,14 @@ class ScoreSchema (namedtuple('ScoreSchema', 'name settings')):
 
     def _pick_range_setting(self, prefix, v):
         match = re.compile('%s_([0-9]+)_([0-9]+)' % prefix)
-        for cat, point_val in self.settings.items():
+        for cat in self.settings.keys():
             m = match.match(cat)
             if not m:
                 continue
             start, end = int(m.group(1)), int(m.group(2))
             if start <= v <= end:
-                return point_val
-        return 0.0
+                return cat
+        return None
 
     def _bonuses(self):
         match = re.compile('^bonus_(.+)_([0-9]+)_([0-9]+)$')
