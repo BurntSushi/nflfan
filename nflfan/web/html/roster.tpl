@@ -39,7 +39,7 @@
         BYE
       % else:
         <a href="#"
-           data-details-url="{{ url.fresh('details', prov=league.prov_name, league=league.name, player_id=player.player_id) }}"
+           data-details-url="{{ url.fresh('details', prov=league.prov_name, league=league.name, player_id=player.player_id, qstr=url.qstr()) }}"
          >{{ player.points }}</a>
       % end
       </td>

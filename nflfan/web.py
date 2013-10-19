@@ -144,7 +144,11 @@ def vbit_details(prov, league, player_id):
         bottle.abort(404, "No stats found for player.")
     pp = pp[0]
 
-    details = nflfan.score_details(lg.scoring, pp, {})
+    q = nfldb.Query(db)
+    q.game(season_year=season_year, season_type=season_type, week=week)
+    pp_fgs = q.play(player_id=player_id, kicking_fga=1).as_play_players()
+
+    details = nflfan.score_details(lg.scoring, pp, pp_fgs)
     return template('details', details=details)
 
 

@@ -82,7 +82,9 @@ def score_players(db, schema, players, phase=nfldb.Enums.season_phase.Regular):
         if rp.is_defense:
             pts = _score_defense_team(schema, db, game, rp, phase)
         else:
-            pts = _score_player(schema, pps.get(rp.player_id, None), fgs=fgs)
+            pp = pps.get(rp.player_id, None)
+            pp_fgs = fgs.get(rp.player_id, [])
+            pts = _score_player(schema, pp, pp_fgs)
         return rp._replace(game=game, points=pts)
 
     games = week_games()
@@ -158,21 +160,23 @@ def _defense_points_allowed(schema, db, game, rplayer,
     return pa
 
 
-def score_details(schema, pp, fgs={}):
+def score_details(schema, pp, fgs=[]):
     """
     Given an nfldb database connection, a `nflfan.ScoreSchema` and
     a `nfldb.PlayPlayer` object, return a dictionary mapping the name of
     a score statistic to a tuple of statistic and total point value
     corresponding to the statistics in `pp`.
 
-    `fgs` should be a dictionary mapping player id to a list of
-    `nfldb.PlayPlayer`, where each describes a *single* field goal
-    `attempt.
+    `fgs` should be a a list of `nfldb.PlayPlayer`, where each
+    describes a *single* field goal `attempt.
     """
     def add(d, cat, stat, pts):
         if pts == 0:
             return
-        d[cat] = (stat, pts)
+        if cat in d:
+            d[cat] = (stat + d[cat][0], pts + d[cat][1])
+        else:
+            d[cat] = (stat, pts)
 
     d = {}
     for cat, v in _pp_stats(pp, lambda cat: not _is_defense_stat(cat)):
@@ -181,24 +185,23 @@ def score_details(schema, pp, fgs={}):
         v = getattr(pp, field, 0.0)
         if start <= v <= end:
             add(d, field, v, pts)
-    for pp in fgs.get(pp.player_id, []):
+    for pp in fgs:
         for cat, v in _pp_stats(pp, lambda cat: cat.startswith('kicking_fg')):
             if cat in ('kicking_fgm_yds', 'kicking_fgmissed_yds'):
                 prefix = re.sub('_yds$', '', cat)
                 scat = schema._pick_range_setting(prefix, v)
                 if scat is not None:
-                    add(d, scat, v, v * schema.settings.get(scat, 0.0))
+                    add(d, scat, 1, schema.settings.get(scat, 0.0))
     return d
 
 
-def _score_player(schema, pp, fgs={}):
+def _score_player(schema, pp, fgs=[]):
     """
     Given a `nfldb.PlayPlayer` object, return the total fantasy points
     according to the `nflfan.ScoreSchema` given.
 
-    `fgs` should be a dictionary mapping player id to a list of
-    `nfldb.PlayPlayer`, where each describes a *single* field goal
-    `attempt.
+    `fgs` should be a a list of `nfldb.PlayPlayer`, where each
+    describes a *single* field goal `attempt.
     """
     if not pp:
         return 0.0
@@ -209,13 +212,13 @@ def _score_player(schema, pp, fgs={}):
     for field, pts, start, end in schema._bonuses():
         if start <= getattr(pp, field, 0.0) <= end:
             s += pts
-    for pp in fgs.get(pp.player_id, []):
+    for pp in fgs:
         for cat, v in _pp_stats(pp, lambda cat: cat.startswith('kicking_fg')):
             if cat in ('kicking_fgm_yds', 'kicking_fgmissed_yds'):
                 prefix = re.sub('_yds$', '', cat)
                 score_cat = schema._pick_range_setting(prefix, v)
                 if score_cat is not None:
-                    s += v * schema.settings.get(score_cat, 0.0)
+                    s += schema.settings.get(score_cat, 0.0)
     return s
 
 
