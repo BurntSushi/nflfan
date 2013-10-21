@@ -1,5 +1,172 @@
-[yahoo]
-request_token = ""
-request_token_secret = ""
-pin = ""
+# The absolute path to your play-by-play footage directory.
+footage_pbp_path = "/m/nfl/broadcast/pbp"
 
+# When `true`, clicking a "watch" link will open VLC on the machine that
+# nflfan is running on. Which only works when you're viewing nflfan on the
+# same machine in which it is running.
+#
+# When set to `false`, an HTML5 video player will be used.
+video_local = false
+
+# These options are mainly for development purposes.
+#
+# When set, play footage will link to an external URL instead of somewhere
+# on the local file system. This is useful when your play videos are hosted
+# on a different server than nflfan.
+# footage_pbp_url = "http://burntsushi.thanatos.feralhosting.com/nfl/broadcast/pbp" 
+
+# A message to show at the top of every page in big, bold, red letters.
+# message = "Testing 1 2 3." 
+
+# You can specify your fantasy leagues on a per-provider basis. Each provider
+# may have multiple leagues associated with it, where each league is specified
+# with the header [provider-name.your-league-name]. The league name is
+# something you may choose to identify your league---it does not have to match
+# your league's actual name.
+#
+# Each provider can have settings that apply to every league (like your
+# username and password). These settings are specified after the headings
+# [provider-name].
+#
+# Similarly, each league can have settings that apply only to that league.
+# Like the season year, identifier, scoring settings, etc.
+#
+# Currently, only Yahoo and ESPN providers are supported.
+
+# An ESPN provider. Make sure to fill in your information!
+[espn]
+username = "ESPN Username"
+password = "ESPN Password"
+
+  # An example of a PPR league.
+  [espn.YOUR LEAGUE NAME HERE]
+  # The season year for this league.
+  season = 2013
+
+  # The ESPN league identifier for this league. You should be able to find
+  # it in the URL for your league.
+  league_id = "123456789"
+
+  # The scoring settings for this league.
+  scoring = "standard.ppr"
+
+  # Your team name.
+  me = "Langdon Algers"
+
+# A Yahoo provider.
+[yahoo]
+username = "Yahoo Username"
+password = "Yahoo Password"
+
+  # One of my actual leagues. It's a Yahoo Pro100 public league.
+  [yahoo.pro100]
+  season = 2013
+  league_id = "314.l.878944"
+  scoring = "standard"
+  me = "Langdon Algers"
+
+# Scoring works by specifying key-value pairs. Keys correspond to statistical
+# categories in nfldb[1], while values correspond to points earned for
+# *each unit* of statistic. For example, `passing_yds = 0.04` translates to
+# "earn 0.04 points for each passing yard."
+#
+# A scoring scheme is specified with a new header `[scoring.name]`, where
+# `name` is any name you choose. `name` can then be used in your league
+# configuration settings.
+#
+# Multiple scoring schemes can be specified in a hierarchical fashion. For
+# example, most league scoring settings correspond to small variations of
+# standard scoring. Instead of re-specifying all of the settings, you can use
+# `[scoring.standard.name]`, where `name` is anything you choose. It will by
+# default contain all of the settings in `scoring.standard`, but each value
+# can be overridden in the configuration for `scoring.standard.name`. You can
+# then use these settings in your league configuration by using
+# `standard.name` in the `scoring` field.
+#
+# Point values may be positive or negative, and they may be decimals or
+# integers.
+#
+# Bonuses can be specified by prepending `bonus_` and appending `_{low}_{hi}`
+# to any statistical category, where `low` and `hi` specify an inclusive range
+# in which the bonus is applied. For example, if you say
+# `bonus_passing_yds_350_1000 = 1` and `bonus_passing_yds_400_1000 = 2`,
+# then any game in which a QB throws for more than 400 yards will get *both*
+# bonuses. To make it so they don't double count, change the first bonus'
+# range to `bonus_passing_yds_350_399 = 1`.
+#
+# Note that there are special statistics that award varying points based on
+# ranges. Bonuses as mentioned above are one example, but there are two others:
+# field goals and defensive points allowed. For example, to specify that field
+# goals between 40 and 49 yards long should receive 4 points, you can use
+# `kicking_fgm_40_49 = 4`. Similarly for defensive points allowed, but you
+# must use `defense_pa` instead. This also works for `kicking_fgmissed`
+# in case your league penalizes missed field goal attempts.
+#
+# There are examples of many different types of league scoring settings in
+# my own configuration file:
+# https://github.com/BurntSushi/nflfan/blob/master/config.burntsushi.toml
+#
+# [1] - https://github.com/BurntSushi/nfldb/wiki/Statistical-categories
+
+[scoring]
+  [scoring.standard]
+  passing_yds = 0.04
+  passing_tds = 4
+  passing_int = -1
+  rushing_yds = 0.1
+  rushing_tds = 6
+  receiving_yds = 0.1
+  receiving_tds = 6
+  kickret_tds = 6
+  puntret_tds = 6
+  passing_twoptm = 2
+  rushing_twoptm = 2
+  receiving_twoptm = 2
+  fumbles_lost = -2
+  fumbles_rec_tds = 6
+
+  kicking_fgm_0_39 = 3
+  kicking_fgm_40_49 = 4
+  kicking_fgm_50_100 = 5
+  kicking_xpmade = 1
+
+  defense_sk = 1
+  defense_int = 2
+  defense_frec = 2
+  defense_int_tds = 6
+  defense_misc_tds = 6
+  defense_safe = 2
+  defense_fgblk = 2
+  defense_kickret_tds = 6
+  defense_puntret_tds = 6
+  defense_pa_0_0 = 10
+  defense_pa_1_6 = 7
+  defense_pa_7_13 = 4
+  defense_pa_14_20 = 1
+  defense_pa_21_27 = 0
+  defense_pa_28_34 = -1
+  defense_pa_35_100 = -4
+
+  # Sometimes "points allowed" is computed by not including certain types
+  # of scores in the game. For example, Yahoo uses this formula:
+  # http://goo.gl/t5YMFC
+  #
+  # At this point, anything other than "yahoo" will results in points allowed
+  # to be exactly equivalent to the number of points scored by the opponent
+  # by any means.
+  defense_pa_style = "yahoo"
+
+    # PPR is just like standard, but with a point awarded for each reception.
+    [scoring.standard.ppr]
+    receiving_rec = 1
+
+    # Reddit IRC scoring settings.
+    [scoring.standard.reddit-irc]
+    passing_int = -2
+    receiving_rec = 1
+    kickret_yds = 0.04
+    puntret_yds = 0.04
+
+    bonus_passing_yds_350_1000 = 1
+    bonus_passing_yds_400_1000 = 2
+    bonus_passing_yds_500_1000 = 3

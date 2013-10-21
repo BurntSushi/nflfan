@@ -73,7 +73,7 @@ def player_search(db, full_name, team=None, position=None):
 
 
 class League (namedtuple('League',
-                         'season ident prov_name name scoring pgroups conf')):
+                         'season ident prov_name name scoring conf')):
     __pdoc__['League.season'] = \
         """The year of the NFL season for this league."""
 
@@ -91,11 +91,6 @@ class League (namedtuple('League',
 
     __pdoc__['League.scoring'] = \
         """The `nflfan.ScoreScheme` for this league."""
-
-    __pdoc__['League.pgroups'] = \
-        """
-        A dictionary mapping names to `nflfan.PositionGroup` objects.
-        """
 
     __pdoc__['League.conf'] = \
         """
@@ -216,12 +211,12 @@ class Roster (namedtuple('Roster', 'owner season week players')):
         set of players on this roster.
         """
 
-    def new_player(self, pos, team, pgroup, bench, player_id):
+    def new_player(self, pos, team, bench, player_id):
         """
         A convenience method for creating a new `nflfan.RosterPlayer`
         given the current roster.
         """
-        return RosterPlayer(pos, team, pgroup, bench, self.season, self.week,
+        return RosterPlayer(pos, team, bench, self.season, self.week,
                             None, 0.0, None, player_id)
 
     @property
@@ -237,39 +232,16 @@ class Roster (namedtuple('Roster', 'owner season week players')):
         """Returns the total number of points for non-benched players."""
         return sum(p.points for p in self.players if not p.bench)
 
-    def grouped(self, bench=True):
-        """
-        Returns a list of lists, where each list corresponds to only
-        the players in a particular position grouping.
-
-        When `bench` is `False`, then benched players will be omitted.
-        """
-        seq = PositionGroup._ord.index
-        rps = sorted(self.players, key=lambda rp: (seq(rp.group), rp.bench))
-        groups = []
-        g = []
-        last = None
-        for i, rp in enumerate(rps):
-            if i == 0 or last != rp.group:
-                groups.append(g)
-                g = [rp]
-            else:
-                g.append(rp)
-            last = rp.group
-        groups.append(g)
-        return groups
-
     def __str__(self):
         s = []
-        for group in self.grouped():
-            for rp in group:
-                s.append(str(rp))
+        for rp in self.players:
+            s.append(str(rp))
         return '\n'.join(s)
 
 
 class RosterPlayer (
     namedtuple('RosterPlayer',
-               'position team group bench season week '
+               'position team bench season week '
                'game points player player_id')):
     __pdoc__['RosterPlayer.position'] = \
         """
@@ -283,9 +255,6 @@ class RosterPlayer (
         A team abbreviation that this player belongs to. It must be a
         valid nfldb team abbreviation and *cannot* be `UNK`.
         """
-
-    __pdoc__['RosterPlayer.group'] = \
-        """The name of the position group that this player belongs to."""
 
     __pdoc__['RosterPlayer.bench'] = \
         """A boolean indicating whether this is a bench position or not."""
@@ -355,39 +324,6 @@ class RosterPlayer (
                % (self.position, self.team, self.name, playing, self.points)
 
 
-@functools.total_ordering
-class PositionGroup (namedtuple('PositionGroup', 'name fields')):
-    """
-    Represents a grouping of statistical categories corresponding
-    to players at related positions. For example, kickers have
-    distinct statistical categories and therefore have their own
-    group. Conversely, QBs, RBs, WRs and TEs all have similar
-    statistical categories and therefore usually belong to the same
-    group.
-    """
-    _ord = ['offense', 'kicking', 'defense']
-    """The order that the position groups should be displayed."""
-
-    __pdoc__['PositionGroup.name'] = \
-        """The name for this position group used in the configuration."""
-
-    __pdoc__['PositionGroup.fields'] = \
-        """
-        An association list mapping display names to statistical
-        categories. This list defines the set of columns to show for
-        this position grouping.
-        """
-
-    def __str__(self):
-        print(self.fields)
-        cols = ', '.join([disp for disp, _ in self.fields])
-        return '%s: %s' % (self.name, cols)
-
-    def __lt__(self, other):
-        seq = PositionGroup._ord.index
-        return seq(self.name) < seq(other.name)
-
-
 class Provider (object):
     """
     This class describes the interface that each fantasy football
@@ -402,8 +338,7 @@ class Provider (object):
     provider_name = None
     """The name of the provider used in the configuration file."""
 
-    conf_required = ['scoring', 'position_groups', 'league_name', 'season',
-                     'league_id']
+    conf_required = ['scoring', 'league_name', 'season', 'league_id']
     """A list of fields required for every provider."""
 
     conf_optional = ['me']
@@ -428,10 +363,9 @@ class Provider (object):
     def roster(self, player_search, owner, week):
         """
         Given a `nflfan.Owner` and a week number, this returns a
-        `nflfan.Roster` object. The `nflfan.Roster` contains a list
-        of `nfldb.Player` objects, their corresponding position
-        on the roster, and the position group that the position
-        belongs to.
+        `nflfan.Roster` object. The `nflfan.Roster` contains a list of
+        `nfldb.Player` objects and their corresponding position on the
+        roster.
 
         `player_search` should be a function that takes a full
         player name and returns the closest matching player as a
@@ -551,23 +485,15 @@ class Yahoo (Provider):
             team_pos = row.find(class_='ysf-player-name').span.text.strip()
             return nfldb.standard_team(re.search('^\S+', team_pos).group(0))
 
-        def pos_group(pos):
-            if pos == nfldb.Enums.player_pos.K:
-                return 'kicking'
-            else:
-                return 'offense'
-
         def rplayer(r, name, team, pos):
             bench = pos == 'BN'
             if name is None and team is None:
-                pgroup = pos_group(pos)
-                return r.new_player(pos, None, pgroup, bench, None)
+                return r.new_player(pos, None, bench, None)
             elif nfldb.standard_team(name) != 'UNK':
-                return r.new_player(pos, team, 'defense', bench, None)
+                return r.new_player(pos, team, bench, None)
             else:
                 player = player_search(name, team=team, position=pos)
-                pgroup = pos_group(player.position)
-                return r.new_player(pos, team, pgroup, bench, player.player_id)
+                return r.new_player(pos, team, bench, player.player_id)
 
         match_table_id = re.compile('^statTable[0-9]+$')
 
@@ -670,24 +596,16 @@ class ESPN (Provider):
                     team = nfldb.standard_team(tpos[0:2])
                 return team
 
-        def pos_group(pos):
-            if pos == nfldb.Enums.player_pos.K:
-                return 'kicking'
-            else:
-                return 'offense'
-
         def rplayer(r, name, team, pos):
             bench = pos == 'BN'
             name_team = nfldb.standard_team(name)
             if name is None and team is None:
-                pgroup = pos_group(pos)
-                return r.new_player(pos, None, pgroup, bench, None)
+                return r.new_player(pos, None, bench, None)
             elif name_team != 'UNK':
-                return r.new_player(pos, name_team, 'defense', bench, None)
+                return r.new_player(pos, name_team, bench, None)
             else:
                 player = player_search(name, team=team, position=pos)
-                pgroup = pos_group(player.position)
-                return r.new_player(pos, team, pgroup, bench, player.player_id)
+                return r.new_player(pos, team, bench, player.player_id)
 
         url = _urls['espn']['roster'] % (self._lg.ident, owner.ident, week)
         soup = BeautifulSoup(self._request(url).text)

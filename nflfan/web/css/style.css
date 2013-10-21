@@ -145,9 +145,12 @@ table {
     }
 
   .roster tr.playing {
-    background: #ff9595;
     font-weight: bold;
   }
+
+    .roster tr.playing .player_name {
+      background: #ff9595;
+    }
 
   .roster tr.finished td.points {
     font-weight: bold;

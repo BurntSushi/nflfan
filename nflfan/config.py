@@ -71,12 +71,11 @@ def load_config(providers=builtin_providers, file_path=''):
 
     raw = toml.loads(get_data('config.toml', file_path=file_path))
     scoring = merge(raw['scoring'])
-    pos_groups = merge(raw['position_groups'])
 
     conf = {'leagues': OrderedDict()}
     for pname in sorted(raw.keys()):
         prov = raw[pname]
-        if pname in ('scoring', 'position_groups'):
+        if pname == 'scoring':
             continue
         if not isinstance(prov, dict):
             conf[pname] = prov
@@ -86,10 +85,10 @@ def load_config(providers=builtin_providers, file_path=''):
         for lg_name, lg in prov_leagues(prov):
             lg['league_name'] = lg_name
             lg['provider_class'] = providers[pname]
-            apply_schema(schema, scoring, pos_groups, pname, prov, lg)
+            apply_schema(schema, scoring, pname, prov, lg)
 
             lg = provider.League(lg['season'], lg['league_id'], pname, lg_name,
-                                 lg['scoring'], lg['position_groups'], lg)
+                                 lg['scoring'], lg)
             conf['leagues'][pname][lg_name] = lg
     return conf
 
@@ -174,13 +173,11 @@ def cache_dir():
     raise IOError('could not find or create a cache directory')
 
 
-def apply_schema(schema, scoring, pos_groups, prov_name, prov, lg):
+def apply_schema(schema, scoring, prov_name, prov, lg):
     """
     Applies the scheme for the provider `prov_name` to the league `lg`
     while using `prov` as a dictionary of default values for `lg`.
     `scoring` should be a dictionary mapping names to scoring schemes.
-    Similarly, `pos_groups` should be a dictionary mapping names to
-    position groupings.
 
     The `schema` should be a dictionary mapping provider name to its
     set of required and optional fields. Namely, each value should be
@@ -198,26 +195,12 @@ def apply_schema(schema, scoring, pos_groups, prov_name, prov, lg):
         except KeyError:
             raise KeyError("Scoring scheme %s does not exist." % ref)
 
-    def get_pos_group(ref):
-        try:
-            # TOML doesn't have tuples, so convert the two-element lists
-            # to a more appropriate representation.
-            def to_group(name, fields):
-                return provider.PositionGroup(name, map(tuple, fields))
-
-            d = pos_groups[ref]
-            return dict([(g, to_group(g, fields)) for g, fields in d.items()])
-        except KeyError:
-            raise KeyError("Position grouping %s does not exist." % ref)
-
     def val(key, required=False):
         v = lg.get(key, prov.get(key, None))
         if required and v is None:
             raise ValueError("Provider %s must have %s." % (prov_name, key))
         if key == 'scoring':
             return get_scoring(v)
-        elif key == 'position_groups':
-            return get_pos_group(v)
         return v
 
     for r in schema['all']['req'] + schema[prov_name]['req']:

@@ -26,14 +26,14 @@
     % end
 
     <tr class="{{ ' '.join(classes) }}">
-      <td>
+      <td class="position">
         {{ player.position }}
         % if player.bench:
           ({{ player.player.position if player.player else 'DEF' }})
         % end
       </td>
-      <td>{{ player.team }}</td>
-      <td>{{ player.name }}</td>
+      <td class="team">{{ player.team }}</td>
+      <td class="player_name">{{ player.name }}</td>
       <td class="points">
       % if player.game is None:
         BYE
