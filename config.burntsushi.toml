@@ -1,0 +1,121 @@
+# footage_pbp_url = "http://burntsushi.thanatos.feralhosting.com/nfl/broadcast/pbp" 
+footage_pbp_path = "/m/nfl/broadcast/pbp"
+video_local = false
+# message = "This is a demo. Only video from week 5 of the 2013 regular season is available." 
+
+[espn]
+username = "SkoeyMitchell"
+password = "***"
+
+  [espn.smalls]
+  season = 2013
+  league_id = "1032293"
+  scoring = "standard.smalls"
+  me = "Langdon Algers"
+
+[yahoo]
+username = "skoeymitchell"
+password = "***"
+
+  [yahoo.keeper]
+  season = 2013
+  league_id = "314.l.11780"
+  scoring = "standard.keeper"
+  me = "Langdon Algers"
+
+  [yahoo.pro20]
+  season = 2013
+  league_id = "314.l.935554"
+  scoring = "standard"
+  me = "Langdon Algers"
+
+  [yahoo.pro100]
+  season = 2013
+  league_id = "314.l.878944"
+  scoring = "standard"
+  me = "Langdon Algers"
+
+  [yahoo.reddit-irc]
+  season = 2013
+  league_id = "314.l.2383"
+  scoring = "standard.reddit-irc"
+  me = "burntsushi"
+
+[scoring]
+  [scoring.standard]
+  passing_yds = 0.04
+  passing_tds = 4
+  passing_int = -1
+  rushing_yds = 0.1
+  rushing_tds = 6
+  receiving_yds = 0.1
+  receiving_tds = 6
+  kickret_tds = 6
+  puntret_tds = 6
+  passing_twoptm = 2
+  rushing_twoptm = 2
+  receiving_twoptm = 2
+  fumbles_lost = -2
+  fumbles_rec_tds = 6
+
+  kicking_fgm_0_39 = 3
+  kicking_fgm_40_49 = 4
+  kicking_fgm_50_100 = 5
+  kicking_xpmade = 1
+
+  defense_sk = 1
+  defense_int = 2
+  defense_frec = 2
+  defense_int_tds = 6
+  defense_misc_tds = 6
+  defense_safe = 2
+  defense_fgblk = 2
+  defense_kickret_tds = 6
+  defense_puntret_tds = 6
+  defense_pa_0_0 = 10
+  defense_pa_1_6 = 7
+  defense_pa_7_13 = 4
+  defense_pa_14_20 = 1
+  defense_pa_21_27 = 0
+  defense_pa_28_34 = -1
+  defense_pa_35_100 = -4
+
+  # Sometimes "points allowed" is computed by not including certain types
+  # of scores in the game. For example, Yahoo uses this formula:
+  # http://goo.gl/t5YMFC
+  #
+  # At this point, anything other than "yahoo" will results in points allowed
+  # to be exactly equivalent to the number of points scored by the opponent
+  # by any means.
+  defense_pa_style = "yahoo"
+
+    [scoring.standard.smalls]
+    passing_tds = 6
+    passing_int = -2
+    receiving_rec = 1
+
+    defense_pa_14_20 = 0
+    defense_pa_14_17 = 1
+
+    [scoring.standard.keeper]
+    passing_int = -2
+    receiving_rec = 0.5
+
+    kicking_xpmissed = -1
+    kicking_fgmissed_0_29 = -3
+    kicking_fgmissed_30_39 = -1
+
+    defense_fgblk = 3
+    defense_pa_21_27 = -1
+    defense_pa_28_34 = -3
+    defense_pa_35_100 = -5
+
+    [scoring.standard.reddit-irc]
+    passing_int = -2
+    receiving_rec = 1
+    kickret_yds = 0.04
+    puntret_yds = 0.04
+
+    bonus_passing_yds_350_1000 = 1
+    bonus_passing_yds_400_1000 = 2
+    bonus_passing_yds_500_1000 = 3

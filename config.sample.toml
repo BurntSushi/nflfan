@@ -13,7 +13,7 @@ video_local = false
 # When set, play footage will link to an external URL instead of somewhere
 # on the local file system. This is useful when your play videos are hosted
 # on a different server than nflfan.
-# footage_pbp_url = "http://burntsushi.thanatos.feralhosting.com/nfl/broadcast/pbp" 
+# footage_pbp_url = "http://localhost/nfl/broadcast/pbp" 
 
 # A message to show at the top of every page in big, bold, red letters.
 # message = "Testing 1 2 3." 
