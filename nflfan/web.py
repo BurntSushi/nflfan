@@ -417,6 +417,6 @@ if __name__ == '__main__':
     builtins['conf'] = conf
 
     bottle.install(exec_time)
-    bottle.run(server='paste', host='0.0.0.0', port=8090)
+    bottle.run(server='paste', host='0.0.0.0', port=8090, debug=True)
 
     db.close()

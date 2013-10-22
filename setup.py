@@ -14,7 +14,7 @@ except LookupError:
         return {True: enc}.get(name == 'mbcs')
     codecs.register(wrapper)
 
-install_requires = ['nfldb', 'bottle']
+install_requires = ['nfldb', 'nflvid', 'bottle', 'paste', 'toml', 'requests']
 try:
     import argparse
 except ImportError:
@@ -32,8 +32,6 @@ with codecs.open(path.join(cwd, 'nflfan/version.py'), 'r', 'utf-8') as f:
     exec(f.read())
     version = __version__
 assert version != '0.0.0'
-
-docfiles = glob('doc/nflfan/*.html') + glob('doc/*.pdf') + glob('doc/*.png')
 
 setup(
     name='nflfan',
@@ -58,9 +56,11 @@ setup(
     ],
     platforms='ANY',
     packages=['nflfan'],
+    package_data={'nflfan': ['web/*/*']},
     data_files=[('share/doc/nflfan', ['README.md', 'longdesc.rst',
-                                      'COPYING', 'INSTALL']),
-                ('share/doc/nflfan/doc', docfiles)],
+                                      'UNLICENSE']),
+                ('share/doc/nflfan/doc', glob('doc/nflfan/*.html')),
+                ('share/nflfan', ['config.sample.toml'])],
     install_requires=install_requires,
-    scripts=['nflfan-yahoo-tokens']
+    scripts=['scripts/nflfan-update']
 )
