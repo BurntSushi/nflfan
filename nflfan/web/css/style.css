@@ -152,7 +152,7 @@ table {
       background: #ff9595;
     }
 
-  .roster tr.finished td.points {
+  .roster tr.finished td:first-child {
     font-weight: bold;
   }
 
