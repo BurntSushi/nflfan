@@ -1,6 +1,5 @@
 from __future__ import absolute_import, division, print_function
 from collections import namedtuple
-import functools
 import json
 import multiprocessing.pool
 import re
@@ -156,7 +155,8 @@ class League (namedtuple('League',
         for owner in raw['owners']:
             d['owners'].append(Owner._make(owner))
         for matchup in raw['matchups']:
-            o1, o2 = Owner._make(matchup[0]), Owner._make(matchup[1])
+            o1 = None if matchup[0] is None else Owner._make(matchup[0])
+            o2 = None if matchup[1] is None else Owner._make(matchup[1])
             d['matchups'].append(Matchup(o1, o2))
         for roster in raw['rosters']:
             o = Owner._make(roster[0])
@@ -459,6 +459,7 @@ class Yahoo (Provider):
         return owners
 
     def matchups(self, week):
+        mk_owner = lambda div: Owner(owner_id(div.a['href']), div.text.strip())
         owner_id = self._owner_id_from_url
 
         url = _urls['yahoo']['matchup'] % (self._league_num, week)
@@ -466,12 +467,11 @@ class Yahoo (Provider):
         soup = BeautifulSoup(rjson['content'])
         matchups = []
         for matchup in soup.find('ul').children:
-            t1, t2 = list(matchup.find_all('div', class_='Fz-sm'))
-            ident1, ident2 = owner_id(t1.a['href']), owner_id(t2.a['href'])
-            name1, name2 = t1.text.strip(), t2.text.strip()
-            o1, o2 = Owner(ident1, name1), Owner(ident2, name2)
-
-            matchups.append(Matchup(o1, o2))
+            pair = list(matchup.find_all('div', class_='Fz-sm'))
+            if len(pair) == 1:
+                matchups.append(Matchup(mk_owner(pair[0]), None))
+            else:
+                matchups.append(Matchup(mk_owner(pair[0]), mk_owner(pair[1])))
         return matchups
 
     def roster(self, player_search, owner, week):
