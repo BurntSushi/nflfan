@@ -11,6 +11,8 @@ import sys
 
 import toml
 
+import nfldb
+
 import nflfan.provider as provider
 import nflfan.score as score
 
@@ -44,14 +46,9 @@ def load_config(providers=builtin_providers, file_path=''):
 
     The return value is a dictionary mapping provider name (e.g.,
     `yahoo`) to a list of leagues for that provider. Each league
-    is guaranteed to have at least a `name`, `season` and `scoring`
-    attributes filled in as values that are not `None`. Providers also
-    have their own specific mandatory fields:
-
-    `yahoo` must have non-empty values for `consumer_key`,
-    `consumer_secret` and `league_id`. In typical cases, the `pin`,
-    `request_token` and `request_token_secret` attributes will also be
-    set.
+    is guaranteed to have at least a `name`, `season`, `phase`
+    and `scoring` attributes filled in as values that are not
+    `None`. Providers also have their own specific mandatory fields:
 
     If no configuration file can be found, then an `IOError` is raised.
     """
@@ -87,8 +84,8 @@ def load_config(providers=builtin_providers, file_path=''):
             lg['provider_class'] = providers[pname]
             apply_schema(schema, scoring, pname, prov, lg)
 
-            lg = provider.League(lg['season'], lg['league_id'], pname, lg_name,
-                                 lg['scoring'], lg)
+            lg = provider.League(lg['season'], lg['phase'], lg['league_id'],
+                                 pname, lg_name, lg['scoring'], lg)
             conf['leagues'][pname][lg_name] = lg
     return conf
 
@@ -144,16 +141,7 @@ def get_data(name, file_path=''):
     raise IOError("Could not find configuration file %s" % name)
 
 
-def json_path(name):
-    """
-    Returns a path to a possibly non-existent cached JSON file.
-
-    `name` should not include the `.json` suffix.
-    """
-    return path.join(cache_dir(), name + '.json')
-
-
-def cache_dir():
+def cache_path():
     """
     Returns a file path to the cache directory. If a cache directory
     does not exist, one is created.
@@ -163,7 +151,7 @@ def cache_dir():
     """
     for fp in _data_paths:
         if os.access(fp, os.R_OK):
-            cdir = path.join(fp, 'cache')
+            cdir = path.join(fp, 'data')
             if not os.access(cdir, os.R_OK):
                 try:
                     os.mkdir(cdir)
@@ -199,8 +187,10 @@ def apply_schema(schema, scoring, prov_name, prov, lg):
         v = lg.get(key, prov.get(key, None))
         if required and v is None:
             raise ValueError("Provider %s must have %s." % (prov_name, key))
-        if key == 'scoring':
+        elif key == 'scoring':
             return get_scoring(v)
+        elif key == 'phase':
+            v = nfldb.Enums.season_phase[v.lower().title()]
         return v
 
     for r in schema['all']['req'] + schema[prov_name]['req']:

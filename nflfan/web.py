@@ -25,12 +25,6 @@ except NameError:
 db = None
 """A global database connection."""
 
-season_year = None
-"""The current season."""
-
-season_type = 'Regular'
-"""The current phase of the season."""
-
 conf = None
 """The nflfan configuration."""
 
@@ -49,6 +43,11 @@ def static_css(name):
 @bottle.get('/js/<name>')
 def static_js(name):
     return bottle.static_file(name, root=path.join(web_path, 'js'))
+
+
+@bottle.get('/favicon.ico')
+def v_favicon():
+    bottle.abort(404, "No favicon")
 
 
 @bottle.get('/vid/<gsis_id:int>/<play_id:int>')
@@ -138,14 +137,14 @@ def vbit_details(prov, league, player_id):
         bottle.abort(404, 'No leagues belonging to you.')
 
     q = nfldb.Query(db)
-    q.game(season_year=season_year, season_type=season_type, week=week)
+    q.game(season_year=lg.season, season_type=lg.phase, week=week)
     pp = q.play(player_id=player_id).as_aggregate()
     if not pp:
         bottle.abort(404, "No stats found for player.")
     pp = pp[0]
 
     q = nfldb.Query(db)
-    q.game(season_year=season_year, season_type=season_type, week=week)
+    q.game(season_year=lg.season, season_type=lg.phase, week=week)
     pp_fgs = q.play(player_id=player_id, kicking_fga=1).as_play_players()
 
     details = nflfan.score_details(lg.scoring, pp, pp_fgs)
@@ -196,11 +195,6 @@ def v_league(prov, league, week=None):
     return template('league', league=conf['leagues'][prov][league])
 
 
-@bottle.error(404)
-def v_404(error):
-    return template('error_404', message=error.output, notime=True)
-
-
 @bottle.error(500)
 def v_500(error):
     message = str(getattr(error, 'exception', 'Unknown error.'))
@@ -208,8 +202,9 @@ def v_500(error):
 
 
 def get_games(week):
+    phase, year, _ = nfldb.current(db)
     q = nfldb.Query(db)
-    q.game(season_year=season_year, season_type=season_type, week=week)
+    q.game(season_year=year, season_type=phase, week=week)
     d = {}
     for g in q.as_games():
         d[g.gsis_id] = g
@@ -221,7 +216,11 @@ def get_games(week):
 def my_lg_rosters(week):
     lgs, rosters = [], []
     for lg in conf_leagues(conf):
-        mine = lg.me(lg.rosters(week))
+        try:
+            mine = lg.me(lg.rosters(week))
+        except IOError as e:
+            print(e)
+            continue
         if mine is None:
             continue
         mine = nflfan.score_roster(db, lg.scoring, mine)
@@ -240,7 +239,7 @@ def plays_from_tags(week, rosters):
     tag_players = filter(lambda x: x, tag_players)
 
     q = nfldb.Query(db)
-    q.game(season_year=rosters[0].season, season_type=season_type, week=week)
+    q.game(season_year=rosters[0].season, season_type='Regular', week=week)
     q.sort(['time_inserted', 'drive_id', 'play_id'])
 
     if tag_players:
@@ -410,8 +409,6 @@ if __name__ == '__main__':
     bottle.TEMPLATE_PATH.insert(0, path.join(web_path, 'html'))
     db = nfldb.connect()
     conf = nflfan.load_config(providers=nflfan.builtin_providers)
-
-    _, season_year, _ = nfldb.current(db)
 
     builtins['db'] = db
     builtins['conf'] = conf

@@ -1,8 +1,11 @@
 from __future__ import absolute_import, division, print_function
+
 from collections import namedtuple
 import json
 import multiprocessing.pool
+import os
 import re
+import sys
 
 import requests
 
@@ -33,11 +36,13 @@ _urls = {
     },
     'espn': {
         'owner': 'http://games.espn.go.com/ffl/leaguesetup'
-                 '/ownerinfo?leagueId=%s',
+                 '/ownerinfo?leagueId={league_id}&seasonId={season_id}',
         'matchup': 'http://games.espn.go.com/ffl/scoreboard?'
-                   'leagueId=%s&matchupPeriodId=%d',
+                   'leagueId={league_id}&matchupPeriodId={week}'
+                   '&seasonId={season_id}',
         'roster': 'http://games.espn.go.com/ffl/playertable/prebuilt/'
-                  'manageroster?leagueId=%s&teamId=%s&scoringPeriodId=%d'
+                  'manageroster?leagueId={league_id}&teamId={team_id}'
+                  '&seasonId={season_id}&scoringPeriodId={week}'
                   '&view=overview&context=clubhouse'
                   '&ajaxPath=playertable/prebuilt/manageroster'
                   '&managingIr=false&droppingPlayers=false&asLM=false',
@@ -47,6 +52,12 @@ _urls = {
 
 def pp(soup):
     print(soup.prettify().encode('utf-8'))
+
+
+def eprint(*args, **kwargs):
+    kwargs['file'] = sys.stderr
+    args = ['[nflfan]'] + list(args)
+    print(*args, **kwargs)
 
 
 def player_search(db, full_name, team=None, position=None):
@@ -72,9 +83,12 @@ def player_search(db, full_name, team=None, position=None):
 
 
 class League (namedtuple('League',
-                         'season ident prov_name name scoring conf')):
+                         'season phase ident prov_name name scoring conf')):
     __pdoc__['League.season'] = \
         """The year of the NFL season for this league."""
+
+    __pdoc__['League.phase'] = \
+        """The phase of the season: preseason, regular or post."""
 
     __pdoc__['League.ident'] = \
         """
@@ -132,7 +146,9 @@ class League (namedtuple('League',
         return self._cached(week, 'rosters')
 
     def cache_path(self, week):
-        return nflfan.config.json_path(self.full_name + ('.%d' % week))
+        return os.path.join(nflfan.config.cache_path(),
+                            str(self.season), str(self.phase), str(week),
+                            self.full_name + '.json')
 
     def _cached(self, week, key):
         if week not in self._cache:
@@ -165,6 +181,9 @@ class League (namedtuple('League',
                 r.players.append(RosterPlayer._make(rp))
             d['rosters'].append(r)
         self._cache[week] = d
+
+    def __str__(self):
+        return self.full_name
 
 
 class Matchup (namedtuple('Matchup', 'owner1 owner2')):
@@ -338,7 +357,7 @@ class Provider (object):
     provider_name = None
     """The name of the provider used in the configuration file."""
 
-    conf_required = ['scoring', 'league_name', 'season', 'league_id']
+    conf_required = ['scoring', 'league_name', 'season', 'phase', 'league_id']
     """A list of fields required for every provider."""
 
     conf_optional = ['me']
@@ -398,11 +417,13 @@ class Provider (object):
         def roster(owner):
             return self.roster(player_search, owner, week)
 
-        pool = multiprocessing.pool.ThreadPool(3)
-        d['rosters'] = pool.map(roster, d['owners'])
+        # pool = multiprocessing.pool.ThreadPool(3) 
+        # d['rosters'] = pool.map(roster, d['owners']) 
+        d['rosters'] = map(roster, d['owners'])
         json.dump(d, open(fp, 'w+'))
 
     def _request(self, url):
+        eprint('download %s' % url)
         r = self._session.get(url)
         soup = BeautifulSoup(r.text)
         if self._login_form(soup):
@@ -434,6 +455,9 @@ class Provider (object):
 
     def _login_form(self, soup):
         assert False, 'subclass responsibility'
+
+    def __str__(self):
+        return self.__class__.provider_name
 
 
 class Yahoo (Provider):
@@ -542,7 +566,8 @@ class ESPN (Provider):
     _login_url = 'http://games.espn.go.com/ffl/signin?_=_'
 
     def owners(self):
-        url = _urls['espn']['owner'] % self._lg.ident
+        url = _urls['espn']['owner'].format(
+            league_id=self._lg.ident, season_id=self._lg.season)
         soup = BeautifulSoup(self._request(url).text)
         owners = []
         for td in soup.select('tr.ownerRow td.teamName'):
@@ -553,7 +578,8 @@ class ESPN (Provider):
     def matchups(self, week):
         owner_id = self._owner_id_from_url
 
-        url = _urls['espn']['matchup'] % (self._lg.ident, week)
+        url = _urls['espn']['matchup'].format(
+            league_id=self._lg.ident, season_id=self._lg.season, week=week)
         soup = BeautifulSoup(self._request(url).text)
         matchupDiv = soup.find(id='scoreboardMatchups')
         matchups = []
@@ -607,7 +633,9 @@ class ESPN (Provider):
                 player = player_search(name, team=team, position=pos)
                 return r.new_player(pos, team, bench, player.player_id)
 
-        url = _urls['espn']['roster'] % (self._lg.ident, owner.ident, week)
+        url = _urls['espn']['roster'].format(
+            league_id=self._lg.ident, season_id=self._lg.season, week=week,
+            team_id=owner.ident)
         soup = BeautifulSoup(self._request(url).text)
 
         roster = Roster(owner, self._lg.season, week, [])

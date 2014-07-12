@@ -4,22 +4,38 @@ from __future__ import absolute_import, division, print_function
 import argparse
 from functools import partial
 import sys
+import traceback
 
 import nfldb
 
 import nflfan
 
 
-def log(*args, **kwargs):
+def eprint(*args, **kwargs):
     kwargs['file'] = sys.stderr
     print(*args, **kwargs)
+
+
+def save(prov, lg, week, logto=None):
+    player_search = partial(nflfan.player_search, db)
+    try:
+        prov.save(lg.cache_path(week), player_search, args.week)
+    except Exception as e:
+        eprint('Could not save %s: %s' % (lg, e))
+        if logto is None:
+            eprint('To see full error message, use --log-path')
+        else:
+            eprint('See "%s" for more details.' % logto.name)
+            print('-' * 79, file=logto)
+            print('Could not save %s: %s' % (lg, e), file=logto)
+            traceback.print_exc(None, logto)
+            print('-' * 79, file=logto)
 
 
 if __name__ == '__main__':
     db = nfldb.connect()
     providers = nflfan.builtin_providers
     conf = nflfan.load_config(providers=providers)
-    player_search = partial(nflfan.player_search, db)
 
     _, _, current_week = nfldb.current(db)
 
@@ -31,13 +47,37 @@ if __name__ == '__main__':
     aa('-w', '--week', type=int, default=current_week,
        help='The week to update provider data for. If no week is given, '
             'then the current week is used.')
+    aa('--league', dest='leagues', default=None, action='append',
+       help='Restrict updating to the given league names. This '
+            'option may be used more than once.')
+    aa('--log-path', default=None, metavar='FILE',
+       help='When specified, *full* error messages resulting from fetching '
+            'league information are stored here. Otherwise, only unhelpful '
+            'error messages will be shown.')
+    aa('--show-leagues', action='store_true',
+       help='When set, all leagues (shown as {prov}.{leage}) will be printed '
+            'and then the program will quit.')
     args = parser.parse_args()
-    assert 1 <= args.week <= 17
+    assert 1 <= args.week <= 25
+
+    if args.show_leagues:
+        for pname, leagues in conf['leagues'].items():
+            for lg in leagues.values():
+                print(lg.full_name)
+        sys.exit(0)
+
+    logto = None
+    if args.log_path is not None:
+        logto = open(args.log_path, 'w')
 
     for pname, leagues in conf['leagues'].items():
         for lg in leagues.values():
-            log('Updating %s (week %d)...' % (lg.full_name, args.week), end='')
+            if args.leagues and lg.name not in args.leagues:
+                continue
+            eprint('Updating %s (week %d)...' % (lg.full_name, args.week))
             prov = providers[lg.prov_name](lg)
-            prov.save(lg.cache_path(args.week), player_search, args.week)
-            log('done.')
+            save(prov, lg, args.week, logto=logto)
+            eprint('Done %s (week %d)' % (lg.full_name, args.week))
+    if logto:
+        logto.close()
 

@@ -24,10 +24,10 @@ def tag_players(db, players):
 
 def score_roster(db, schema, roster, phase=nfldb.Enums.season_phase.Regular):
     """
-    Given a database connection, a `nflfan.ScoreSchema` and a
-    `nflfan.Roster`, return a new `nflfan.Roster` with a list of
-    `nflfan.Scored` objects containing the fantasy points of every
-    player in the roster for the corresponding week of football.
+    Given a database connection, a `nflfan.ScoreSchema`, and
+    a `nflfan.Roster`, return a new `nflfan.Roster` with
+    `nflfan.RosterPlayer` objects with the `playing` and `points`
+    attributes set.
 
     `phase` may be set to a different phase of the season, but
     traditional fantasy sports are only played during the regular
@@ -45,10 +45,9 @@ def score_roster(db, schema, roster, phase=nfldb.Enums.season_phase.Regular):
 
 def score_players(db, schema, players, phase=nfldb.Enums.season_phase.Regular):
     """
-    Given a database connection, a `nflfan.ScoreSchema`, a list of
-    `nflfan.RosterPlayer` and the season year and week of a game,
-    return a list of new `nflfan.RosterPlayer` objects with the
-    `playing` and `points` attributes set.
+    Given a database connection, a `nflfan.ScoreSchema`, and a list of
+    `nflfan.RosterPlayer`, return a list of new `nflfan.RosterPlayer`
+    objects with the `playing` and `points` attributes set.
 
     `phase` may be set to a different phase of the season, but
     traditional fantasy sports are only played during the regular

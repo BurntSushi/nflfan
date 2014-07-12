@@ -12,7 +12,7 @@ Currently, only Yahoo and ESPN fantasy leagues are supported. But
 nflfan is extensible, and it will be easy to add more leagues in the
 future.
 """
-from nflfan.config import builtin_providers, load_config, json_path
+from nflfan.config import builtin_providers, load_config, cache_path
 from nflfan.provider import __pdoc__ as __provider_pdoc__
 from nflfan.provider import player_search
 from nflfan.provider import League
@@ -29,7 +29,7 @@ __pdoc__ = dict(__pdoc__, **__score_pdoc__)
 
 __all__ = [
     # nflfan.config
-    'builtin_providers', 'load_config', 'json_path',
+    'builtin_providers', 'load_config', 'cache_path',
 
     # nflfan.provider
     'player_search',
