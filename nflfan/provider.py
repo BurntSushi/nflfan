@@ -103,7 +103,7 @@ class League (namedtuple('League',
         """The name of this league from the configuration."""
 
     __pdoc__['League.scoring'] = \
-        """The `nflfan.ScoreScheme` for this league."""
+        """The `nflfan.ScoreSchema` for this league."""
 
     __pdoc__['League.conf'] = \
         """
