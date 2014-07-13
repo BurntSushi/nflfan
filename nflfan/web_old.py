@@ -28,7 +28,7 @@ db = None
 conf = None
 """The nflfan configuration."""
 
-web_path = path.join(path.split(__file__)[0], 'web')
+web_path = path.join(path.split(__file__)[0], 'web_old')
 """The absolute path of the directory containing web assets."""
 
 builtins = {}
