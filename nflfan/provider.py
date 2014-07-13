@@ -139,11 +139,29 @@ class League (namedtuple('League',
     def owners(self, week):
         return self._cached(week, 'owners')
 
+    def owner(self, week, ident):
+        for o in self.owners(week):
+            if o.ident == ident:
+                return o
+        return None
+
     def matchups(self, week):
         return self._cached(week, 'matchups')
 
+    def matchup(self, week, ident):
+        for m in self.matchups(week):
+            if m.owner1.ident == ident or m.owner2.ident == ident:
+                return m
+        return None
+
     def rosters(self, week):
         return self._cached(week, 'rosters')
+
+    def roster(self, week, ident):
+        for r in self.rosters(week):
+            if r.owner.ident == ident:
+                return r
+        return None
 
     def cache_path(self, week):
         return os.path.join(nflfan.config.cache_path(),
