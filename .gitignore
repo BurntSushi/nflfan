@@ -4,3 +4,4 @@ MANIFEST
 dist
 doc
 build
+*.egg-info

@@ -1,5 +1,6 @@
 from __future__ import absolute_import, division, print_function
 
+import itertools
 import json
 import os.path as path
 import time
@@ -30,6 +31,37 @@ builtins = {}
 """An environment of builtin functions passed to every template."""
 
 
+@bottle.get('/seasons/<season:int>/phases/<phase>'
+            '/weeks/<week:int>/games',
+            name='v_games')
+def v_games(season, phase, week):
+    phase = as_phase(phase)
+    q = nfldb_sort(nfldb.Query(db))
+    games = q.game(season_year=season, season_type=phase, week=week).as_games()
+    return template('index', season=season, phase=phase, week=week,
+                    games=games)
+
+
+@bottle.get('/css/<name:path>')
+def static_css(name):
+    return bottle.static_file(name, root=path.join(web_path, 'css'))
+
+
+@bottle.get('/js/<name:path>')
+def static_js(name):
+    return bottle.static_file(name, root=path.join(web_path, 'js'))
+
+
+@bottle.get('/fonts/<name:path>')
+def static_fonts(name):
+    return bottle.static_file(name, root=path.join(web_path, 'fonts'))
+
+
+@bottle.get('/favicon.ico')
+def v_favicon():
+    bottle.abort(404, "No favicon")
+
+
 def rest(f):
     def _(*args, **kwargs):
         bottle.response.content_type = 'application/json'
@@ -37,29 +69,27 @@ def rest(f):
     return _
 
 
-@bottle.get('/current', name='current')
+@bottle.get('/v1/current', name='v1_current')
 @rest
 def rest_current():
     phase, season, week = nfldb.current(db)
     return {'phase': str(phase), 'season': season, 'week': week}
 
 
-@bottle.get('/seasons', name='seasons')
+@bottle.get('/v1/seasons', name='v1_seasons')
 @rest
 def rest_seasons():
-    seasons = set(lg.season for lg in leagues())
-    return sorted(seasons)
+    return range(2009, 2015)
 
 
-@bottle.get('/seasons/<season:int>/phases', name='phases')
+@bottle.get('/v1/seasons/<season:int>/phases', name='v1_phases')
 @rest
 def rest_phases(season):
-    phases = set(str(lg.phase) for lg in leagues(season=season))
-    return [{'phase': p for p in sorted(phases)}]
+    return ['Preseason', 'Regular', 'Postseason']
 
 
-@bottle.get('/seasons/<season:int>/phases/<phase>/weeks', name='weeks')
-@bottle.get('/leagues/<lg>/weeks', name='league_weeks')
+@bottle.get('/v1/seasons/<season:int>/phases/<phase>/weeks', name='v1_weeks')
+@bottle.get('/v1/leagues/<lg>/weeks', name='v1_league_weeks')
 @rest
 def rest_weeks(season=None, phase=None, lg=None):
     if lg is not None:
@@ -77,85 +107,71 @@ def rest_weeks(season=None, phase=None, lg=None):
         assert False, 'unreachable'
 
 
-@bottle.get('/seasons/<season:int>/phases/<phase>'
+@bottle.get('/v1/seasons/<season:int>/phases/<phase>'
             '/weeks/<week:int>/games',
-            name='games')
-@bottle.get('/seasons/<season:int>/phases/<phase>'
-            '/weeks/<week:int>/games/<gsis_id>',
-            name='game')
+            name='v1_games')
+@bottle.get('/v1/games/<gsis_id>', name='v1_game')
 @rest
-def rest_games(season, phase, week, gsis_id=None):
-    phase = as_phase(phase)
-    q = nfldb.Query(db)
+def rest_games(season=None, phase=None, week=None, gsis_id=None):
     if gsis_id is None:
-        q.game(season_year=season, season_type=phase, week=week)
-        return map(as_rest_game, q.sort(('gsis_id', 'asc')).as_games())
+        q = nfldb.Query(db)
+        q.game(season_year=season, season_type=as_phase(phase), week=week)
+        return map(as_rest_game, nfldb_sort(q).as_games())
     else:
         return as_rest_game(nfldb.Game.from_id(db, gsis_id))
 
 
-@bottle.get('/seasons/<season:int>/phases/<phase>'
-            '/weeks/<week:int>/games/<gsis_id>/drives',
-            name='drives')
-@bottle.get('/seasons/<season:int>/phases/<phase>'
-            '/weeks/<week:int>/games/<gsis_id>/drives/<drive_id>',
-            name='drive')
+@bottle.get('/v1/games/<gsis_id>/drives', name='v1_drives')
+@bottle.get('/v1/games/<gsis_id>/drives/<drive_id>', name='v1_drive')
 @rest
-def rest_drives(season, phase, week, gsis_id, drive_id=None):
-    phase = as_phase(phase)
-    q = nfldb.Query(db)
+def rest_drives(gsis_id, drive_id=None):
     if drive_id is None:
+        q = nfldb.Query(db)
         q.game(gsis_id=gsis_id)
         return map(as_rest_drive, q.sort(('drive_id', 'asc')).as_drives())
     else:
         return as_rest_drive(nfldb.Drive.from_id(db, gsis_id, drive_id))
 
 
-@bottle.get('/seasons/<season:int>/phases/<phase>/weeks/<week:int>/plays',
-            name='week_plays')
-@bottle.get('/seasons/<season:int>/phases/<phase>'
-            '/weeks/<week:int>/games/<gsis_id>/plays',
-            name='game_plays')
-@bottle.get('/seasons/<season:int>/phases/<phase>'
-            '/weeks/<week:int>/games/<gsis_id>'
-            '/drives/<drive_id>/plays',
-            name='drive_plays')
-@bottle.get('/seasons/<season:int>/phases/<phase>'
-            '/weeks/<week:int>/games/<gsis_id>'
-            '/drives/<drive_id>/plays/<play_id>',
-            name='drive_play')
+@bottle.get('/v1/seasons/<season:int>/phases/<phase>/weeks/<week:int>/plays',
+            name='v1_week_plays')
+@bottle.get('/v1/games/<gsis_id>/plays', name='v1_plays')
+@bottle.get('/v1/games/<gsis_id>/drives/<drive_id>/plays',
+            name='v1_drive_plays')
+@bottle.get('/v1/games/<gsis_id>/drives/<drive_id>/plays/<play_id>',
+            name='v1_drive_play')
 @rest
-def rest_plays(season, phase, week, gsis_id=None, drive_id=None, play_id=None):
+def rest_plays(season=None, phase=None, week=None,
+               gsis_id=None, drive_id=None, play_id=None):
     if play_id is None:
-        phase = as_phase(phase)
         q = nfldb.Query(db)
-        q.game(season_year=season, season_type=phase, week=week)
+        if None not in (season, phase, week):
+            q.game(season_year=season, season_type=as_phase(phase), week=week)
         if gsis_id is not None:
             q.game(gsis_id=gsis_id)
         if drive_id is not None:
             q.drive(drive_id=drive_id)
-        return map(as_rest_play, q.sort(('play_id', 'asc')).as_plays())
+        return map(as_rest_play, nfldb_sort(q).as_plays())
     else:
         return as_rest_play(nfldb.Play.from_id(db, gsis_id, drive_id, play_id))
 
 
-@bottle.get('/seasons/<season:int>/phases/<phase>/weeks/<week:int>/players',
-            name='week_players')
-@bottle.get('/seasons/<season:int>/phases/<phase>'
-            '/weeks/<week:int>/games/<gsis_id>/players',
-            name='game_players')
+@bottle.get('/v1/seasons/<season:int>/phases/<phase>/weeks/<week:int>/players',
+            name='v1_week_players')
+@bottle.get('/v1/games/<gsis_id>/players', name='v1_game_players')
 @rest
-def rest_players(season, phase, week, gsis_id=None):
+def rest_players(season=None, phase=None, week=None, gsis_id=None):
     phase = as_phase(phase)
     q = nfldb.Query(db)
-    q.game(season_year=season, season_type=phase, week=week)
+    if None not in (season, phase, week):
+        q.game(season_year=season, season_type=phase, week=week)
     if gsis_id is not None:
         q.game(gsis_id=gsis_id)
     return map(as_rest_player, q.sort(('full_name', 'asc')).as_players())
 
 
-@bottle.get('/players')
-@bottle.get('/players/<player_id>', name='player')
+@bottle.get('/v1/players', name='v1_players')
+@bottle.get('/v1/players/<player_id>', name='v1_player')
 @rest
 def rest_player(player_id=None):
     if player_id is None:
@@ -163,16 +179,16 @@ def rest_player(player_id=None):
     return as_rest_player(nfldb.Player.from_id(db, player_id))
 
 
-@bottle.get('/seasons/<season:int>/phases/<phase>/leagues',
-            name='season_leagues')
+@bottle.get('/v1/seasons/<season:int>/phases/<phase>/leagues',
+            name='v1_season_leagues')
 @rest
 def rest_season_leagues(season, phase):
     lgs = leagues(season=season, phase=phase)
     return map(as_rest_league, lgs)
 
 
-@bottle.get('/leagues', name='leagues')
-@bottle.get('/leagues/<lg>', name='league')
+@bottle.get('/v1/leagues', name='v1_leagues')
+@bottle.get('/v1/leagues/<lg>', name='v1_league')
 @rest
 def rest_leagues(lg=None):
     if lg is None:
@@ -182,7 +198,7 @@ def rest_leagues(lg=None):
         return as_rest_league(lg)
 
 
-@bottle.get('/leagues/<lg>/weeks/<week:int>/me', name='me')
+@bottle.get('/v1/leagues/<lg>/weeks/<week:int>/me', name='v1_me')
 @rest
 def rest_me(lg, week):
     lg = league(lg)
@@ -196,8 +212,8 @@ def rest_me(lg, week):
     return as_rest_owner(me_owner)
 
 
-@bottle.get('/leagues/<lg>/weeks/<week:int>/owners', name='owners')
-@bottle.get('/leagues/<lg>/weeks/<week:int>/owners/<owner>', name='owner')
+@bottle.get('/v1/leagues/<lg>/weeks/<week:int>/owners', name='v1_owners')
+@bottle.get('/v1/leagues/<lg>/weeks/<week:int>/owners/<owner>', name='v1_owner')
 @rest
 def rest_owners(lg, week, owner=None):
     if owner is None:
@@ -207,9 +223,9 @@ def rest_owners(lg, week, owner=None):
         return as_rest_owner(owner)
 
 
-@bottle.get('/leagues/<lg>/weeks/<week:int>/matchups', name='matchups')
-@bottle.get('/leagues/<lg>/weeks/<week:int>/matchups/<matchup>',
-            name='matchup')
+@bottle.get('/v1/leagues/<lg>/weeks/<week:int>/matchups', name='v1_matchups')
+@bottle.get('/v1/leagues/<lg>/weeks/<week:int>/matchups/<matchup>',
+            name='v1_matchup')
 @rest
 def rest_matchups(lg, week, matchup=None):
     if matchup is None:
@@ -220,8 +236,10 @@ def rest_matchups(lg, week, matchup=None):
         return as_rest_matchup(matchup)
 
 
-@bottle.get('/leagues/<lg>/weeks/<week:int>/rosters', name='rosters')
-@bottle.get('/leagues/<lg>/weeks/<week:int>/rosters/<roster>', name='roster')
+@bottle.get('/v1/leagues/<lg>/weeks/<week:int>/rosters',
+            name='v1_rosters')
+@bottle.get('/v1/leagues/<lg>/weeks/<week:int>/rosters/<roster>',
+            name='v1_roster')
 @rest
 def rest_rosters(lg, week, roster=None):
     if bottle.request.query.get('scored', False):
@@ -237,6 +255,26 @@ def rest_rosters(lg, week, roster=None):
     else:
         roster = no_none(lg.roster(week, roster), 'roster', roster)
         return as_rest_roster(score(lg, roster))
+
+
+def nfldb_sort(q):
+    '''
+    Given an `nfldb.Query` object, apply the necessary sorting and
+    limit criteria to it from the request parameters.
+    '''
+    params = bottle.request.query
+    limit = int(params.get('limit', 25))
+    sorts = []  # param to pass to nfldb.Query().sort(...)
+    for field in params.getall('sort'):
+        if len(field) == 0:
+            continue
+        if field[0] == '-':
+            sorts.append((field[1:], 'desc'))
+        else:
+            if field[0] == '+':
+                field = field[1:]
+            sorts.append((field, 'asc'))
+    return q.sort(sorts).limit(limit)
 
 
 def as_rest_league(lg):
@@ -419,6 +457,24 @@ def leagues(season=None, phase=None):
     return sorted(leagues, key=lambda lg: (-lg.season, lg.name))
 
 
+def builtin(f):
+    builtins[f.__name__] = f
+    return f
+
+
+def template(*args, **kwargs):
+    for name, f in builtins.items():
+        if name not in kwargs:
+            kwargs[name] = f
+    return bottle.template(*args, **kwargs)
+
+
+@builtin
+def grouped(n, iterable):
+    it = itertools.izip_longest(*([iter(iterable)] * n))
+    return ([x for x in xs if x is not None] for xs in it)
+
+
 def exec_time(cb):
     def _(*args, **kwargs):
         start = time.time()
@@ -434,7 +490,7 @@ def exec_time(cb):
 
 
 if __name__ == '__main__':
-    bottle.TEMPLATE_PATH.insert(0, path.join(web_path, 'html'))
+    bottle.TEMPLATE_PATH.insert(0, path.join(web_path, 'tpl'))
     db = nfldb.connect()
     conf = nflfan.load_config(providers=nflfan.builtin_providers)
 
