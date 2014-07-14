@@ -4,7 +4,10 @@ function url(resource) {
 }
 
 function game(gsis_id) {
-    return $.getJSON(url(_s.sprintf('games/%s', gsis_id)));
+    var convert_date = function(json) {
+        json.start_time = new Date(json.start_time);
+    };
+    return $.getJSON(url(_s.sprintf('games/%s', gsis_id))).done(convert_date);
 }
 
 function plays_week(season, phase, week) {

@@ -151,7 +151,7 @@ def rest_plays(season=None, phase=None, week=None,
             q.game(gsis_id=gsis_id)
         if drive_id is not None:
             q.drive(drive_id=drive_id)
-        return map(as_rest_play, nfldb_sort(q).as_plays())
+        return map(as_rest_play, nfldb_sort(q).as_plays(fill=True))
     else:
         return as_rest_play(nfldb.Play.from_id(db, gsis_id, drive_id, play_id))
 
@@ -336,7 +336,7 @@ def as_rest_game(g):
         'winner': g.winner,
         'phase': str(g.season_type),
         'season': g.season_year,
-        'start_time': str(g.start_time),
+        'start_time': g.start_time.strftime('%Y-%m-%dT%H:%M:%S%z'),
         'week': g.week,
     }
 
@@ -373,6 +373,7 @@ def as_rest_play(p):
         'time': str(p.time),
         'yardline': str(p.yardline),
         'yards_to_go': p.yards_to_go,
+        'players': [pp.player_id for pp in p.play_players],
     }
     cats = [k for k, v in nfldb.stat_categories.iteritems()
               if v.category_type == nfldb.Enums.category_scope.play]
