@@ -1,4 +1,4 @@
-require(['jquery', 'controls', 'game-panel', 'nav', 'bootstrap'],
+require(['jquery', 'lib/controls', 'lib/game-panel', 'lib/nav', 'bootstrap'],
         function($, PanelControls, GamePanel) {
 
 // Some breadcrumbs:
@@ -21,13 +21,6 @@ require(['jquery', 'controls', 'game-panel', 'nav', 'bootstrap'],
 //    into plays (which contain player ids).
 //    How to display? Colors? Would like colors for types of plays though.
 //    Hmm.
-// 6) Get rid of text!blah.html dependencies. Just use Bottle templates.
-//    There's no real reason not to.
-// 7) Get rid of underscore and underscore.string dependency. I think I can
-//    (or WANT) to make due without them.
-//    However, find a good sprintf.
-//    This looks promising: https://github.com/alexei/sprintf.js
-
 
 $(document).ready(function() {
     var $controls = new PanelControls($('#nflfan-panel-game-controls'));

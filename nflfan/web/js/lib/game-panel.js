@@ -1,4 +1,4 @@
-define(['knockout', 'rest'], function(ko, rest) {
+define(['knockout', 'lib/rest'], function(ko, rest) {
 
 function GamePanel(controls, $node) {
     var self = this;

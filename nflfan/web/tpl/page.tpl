@@ -22,7 +22,7 @@
         }
       };
     </script>
-    <script data-main="index" src="/js/lib/require.js"></script>
+    <script data-main="games" src="/js/ext/require.js"></script>
 
     <link href="/css/bootstrap.min.css" rel="stylesheet">
     <!-- <link href="/css/bootstrap-theme.min.css" rel="stylesheet"> -->

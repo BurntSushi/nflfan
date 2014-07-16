@@ -38,7 +38,7 @@ def v_games(season, phase, week):
     phase = as_phase(phase)
     q = nfldb_sort(nfldb.Query(db))
     games = q.game(season_year=season, season_type=phase, week=week).as_games()
-    return template('index', season=season, phase=phase, week=week,
+    return template('games', season=season, phase=phase, week=week,
                     games=games)
 
 

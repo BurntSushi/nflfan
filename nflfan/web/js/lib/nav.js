@@ -1,4 +1,4 @@
-define(['jquery', 'knockout', 'rest'], function($, ko, rest) {
+define(['jquery', 'knockout', 'lib/rest'], function($, ko, rest) {
 
 function Weeks($node) {
     var self = this;
