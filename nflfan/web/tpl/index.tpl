@@ -6,9 +6,7 @@
       <h1>{{ season }} {{ phase }}, week {{ week }}</h1>
     </div>
     <div class="col-lg-8 text-right">
-      <div class="nflfan-weeks"
-           data-season="{{season}}" data-phase="{{phase}}" data-week="{{week}}">
-      </div>
+      % include('nav', season=season, phase=phase, week=week)
     </div>
   </div>
 </div>
