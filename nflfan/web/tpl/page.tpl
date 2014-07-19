@@ -30,8 +30,6 @@
 
   </head>
   <body>
-    <div class="container-fluid">
-      {{! base }}
-    </div>
+    {{! base }}
   </body>
 </html>

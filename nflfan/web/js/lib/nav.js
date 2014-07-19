@@ -1,7 +1,8 @@
-define(['jquery', 'knockout', 'lib/rest'], function($, ko, rest) {
+define(['jquery', 'knockout', 'lib/rest'], function($, ko, API) {
 
 function Weeks($node) {
     var self = this;
+    this.api = new API();
     self.$node = $node;
     self.season = self.$node.data('season');
     self.phase = self.$node.data('phase');
@@ -13,13 +14,13 @@ function Weeks($node) {
 
     ko.applyBindings(self, self.$node[0]);
 
-    rest.weeks_phase(self.season, self.phase).done(function(weeks) {
+    self.api.weeks_phase(self.season, self.phase).done(function(weeks) {
         self.weeks(weeks);
     });
-    rest.seasons().done(function(seasons) {
+    self.api.seasons().done(function(seasons) {
         self.seasons(seasons);
     });
-    rest.phases(self.season).done(function(phases) {
+    self.api.phases(self.season).done(function(phases) {
         self.phases(phases);
     });
 }
@@ -30,5 +31,4 @@ Weeks.prototype.url = function(param, val) {
 };
 
 $('.nflfan-weeks').each(function() { new Weeks($(this)); });
-
 });

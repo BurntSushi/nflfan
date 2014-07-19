@@ -1,8 +1,9 @@
-define(['knockout', 'lib/rest'], function(ko, rest) {
+define(['knockout'], function(ko) {
 
 function GamePanel(controls, $node) {
     var self = this;
     self.controls = controls;
+    self.api = self.controls.api;
     self.$node = $node;
     self.gsis_id = $node.data('gsis-id');
     self.game = ko.observable(null);
@@ -10,14 +11,23 @@ function GamePanel(controls, $node) {
 
     ko.applyBindings(self, self.$node[0]);
 
+    self.update_game();
+    self.update_plays();
     self.controls.subscribe(function(val) {
-        console.log('GamePanel: ' + val.limit);
+        self.update_plays();
     });
+}
 
-    rest.game(self.gsis_id).done(function(game) {
+GamePanel.prototype.update_game = function() {
+    var self = this;
+    self.api.game(self.gsis_id).done(function(game) {
         self.game(game);
     });
-    rest.plays_game(self.gsis_id).done(function(plays) {
+};
+
+GamePanel.prototype.update_plays = function() {
+    var self = this;
+    self.api.plays_game(self.gsis_id).done(function(plays) {
         self.plays(plays);
     });
 }

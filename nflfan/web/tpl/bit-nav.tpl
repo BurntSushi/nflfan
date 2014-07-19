@@ -3,7 +3,7 @@
   <ul class="pagination nomartop nomarbot">
     <!-- ko foreach: seasons -->
       <!-- ko if: $data == $parent.season -->
-        <li class="disabled">
+        <li class="active">
           <span><strong data-bind="text: $data"></strong></span>
         </li>
       <!-- /ko -->
@@ -18,7 +18,7 @@
   <ul class="pagination nomartop nomarbot">
     <!-- ko foreach: phases -->
       <!-- ko if: $data == $parent.phase -->
-        <li class="disabled">
+        <li class="active">
           <span><strong data-bind="text: $data"></strong></span>
         </li>
       <!-- /ko -->
@@ -34,7 +34,7 @@
   <ul class="pagination nomartop">
     <!-- ko foreach: weeks -->
       <!-- ko if: $data == $parent.week -->
-        <li class="disabled">
+        <li class="active">
           <span><strong data-bind="text: $data"></strong></span>
         </li>
       <!-- /ko -->
