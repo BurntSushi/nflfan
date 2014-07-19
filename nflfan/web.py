@@ -263,7 +263,7 @@ def nfldb_sort(q):
     limit criteria to it from the request parameters.
     '''
     params = bottle.request.query
-    limit = int(params.get('limit', 25))
+    limit = param_int('limit', 20)
     sorts = []  # param to pass to nfldb.Query().sort(...)
     for field in params.getall('sort'):
         if len(field) == 0:
@@ -456,6 +456,13 @@ def leagues(season=None, phase=None):
                 continue
             leagues.append(lg)
     return sorted(leagues, key=lambda lg: (-lg.season, lg.name))
+
+
+def param_int(name, default=None):
+    try:
+        return int(bottle.request.query.get(name, default))
+    except ValueError:
+        return default
 
 
 def builtin(f):
