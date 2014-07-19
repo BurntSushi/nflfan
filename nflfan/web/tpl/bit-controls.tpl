@@ -34,37 +34,37 @@
         </div>
         <div class="modal-body">
           <!-- ko foreach: filters.sorts -->
-            <div class="row bot15"><div class="col-xs-12">
-              <div class="form-group right10">
-                <select class="form-control"
-                        data-bind="optionsCaption: 'Field',
-                                   options: $parent.available.fields,
-                                   value: field"></select>
-              </div>
-              <div class="form-group">
-                <label class="radio-inline">
-                  <input type="radio" value="+"
-                         data-bind="attr: { name: $index }, checked: order">
-                  Ascending
-                </label>
-                <label class="radio-inline">
-                  <input type="radio" value="-"
-                         data-bind="attr: { name: $index }, checked: order">
-                  Descending
-                </label>
-              </div>
-              <div class="form-group"
-                   data-bind="if: $parent.filters.sorts().length >= 2">
-                <button type="button" class="btn btn-default"
-                        data-bind="click: $root.remove_sort_field">
-                  Remove
-                </button>
-              </div>
-            </div></div>
+          <div class="row bot15"><div class="col-xs-12">
+            <div class="form-group right10">
+              <select class="form-control"
+                      data-bind="optionsCaption: 'Field',
+                                 options: $parent.available.fields,
+                                 value: field"></select>
+            </div>
+            <div class="form-group">
+              <label class="radio-inline">
+                <input type="radio" value="+"
+                       data-bind="attr: { name: $index }, checked: order">
+                Ascending
+              </label>
+              <label class="radio-inline">
+                <input type="radio" value="-"
+                       data-bind="attr: { name: $index }, checked: order">
+                Descending
+              </label>
+            </div>
+            <div class="form-group"
+                 data-bind="if: $parent.filters.sorts().length >= 2">
+              <button type="button" class="btn btn-default"
+                      data-bind="click: function() { $root.remove_sort($data); }">
+                Remove
+              </button>
+            </div>
+          </div></div>
           <!-- /ko -->
           <div class="row"><div class="col-xs-12">
             <button type="button" class="btn btn-primary"
-                    data-bind="click: add_sort_field">
+                    data-bind="click: add_sort">
               Add another field
             </button>
           </div></div>

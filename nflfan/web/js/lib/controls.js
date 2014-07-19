@@ -30,12 +30,6 @@ function Panel($node) {
         return params;
     });
 
-    // Ug. Apparently KO does not set `this` correct when using special
-    // bindings like `$parent` or `$root`. Therefore, we've got to define
-    // this method in the constructor so we can close over `self`.
-    self.remove_sort_field = function(field) {
-        self.filters.sorts.remove(field);
-    };
 
     ko.applyBindings(self, self.$node[0]);
 }
@@ -44,11 +38,22 @@ Panel.prototype.subscribe = function(callback) {
     this.options.subscribe(callback);
 };
 
-Panel.prototype.add_sort_field = function() {
+Panel.prototype.add_sort = function() {
     this.filters.sorts.push({
         field: ko.observable(),
         order: ko.observable('+')
     });
+};
+
+// If calling this in the view with something like `$root.remove_sort`,
+// then you'll need to use this instead:
+//
+//     function() { $root.remove_sort(...); }
+//
+// It's a bug: https://github.com/knockout/knockout/issues/378
+// (Well, not everyone thinks so, but it seems like a bug to me.)
+Panel.prototype.remove_sort = function(field) {
+    this.filters.sorts.remove(field);
 };
 
 return Panel;
