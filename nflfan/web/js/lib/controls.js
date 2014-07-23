@@ -1,20 +1,24 @@
-define(['knockout', 'lib/rest'], function(ko, API) {
+define(['jquery', 'knockout', 'lib/rest'], function($, ko, API) {
 
-function Panel($node) {
+var DEFAULT_LIMITS = ['10', '20', '30', '40', '50', '100'];
+var DEFAULT_SORT_FIELDS = ['Game', 'Drive', 'Play', 'PlayPlayer', 'Player'];
+
+function Panel($node, options) {
     var self = this;
+    options = options || {};
+    options.filters = options.filters || {};
+
     self.api = new API();
-    self.$node = $node;
-    self.filters = {
-        limit: ko.observable(undefined),
-        sorts: ko.observableArray([{
-            field: ko.observable(), order: ko.observable('+')
-        }])
-    };
-    self.available = {
-        limits: ['10', '20', '30', '40', '50', '100'],
-        fields: ['down', 'points']
-    }
-    self.options = ko.computed(function() {
+    self.filters = {};
+    self.available = $.extend({
+        limits: DEFAULT_LIMITS,
+        sort_fields: DEFAULT_SORT_FIELDS
+    }, options.available);
+
+    self._init_limit(options);
+    self._init_sort(options);
+
+    self.api_options = ko.computed(function() {
         var params = {
             limit: self.filters.limit(),
             sort:
@@ -30,12 +34,40 @@ function Panel($node) {
         return params;
     });
 
-
-    ko.applyBindings(self, self.$node[0]);
+    ko.applyBindings(self, $node[0]);
 }
 
+Panel.prototype._init_limit = function(options) {
+    var self = this;
+
+    self.filters.limit = ko.observable(options.filters.limit);
+};
+
+Panel.prototype._init_sort = function(options) {
+    var self = this;
+
+    var sorts = options.filters.sorts || [{field: undefined, order: '+'}];
+    self.filters.sorts = ko.observableArray();
+    sorts.forEach(function(v) {
+        self.filters.sorts.push({
+            field: ko.observable(v.field),
+            order: ko.observable(v.order)
+        });
+    });
+
+    self.sort_fields = ko.observableArray();
+    self.available.sort_fields.forEach(function(entity) {
+        self.api.fields(entity).done(function(fields) {
+            self.sort_fields.push({entity: entity, fields: fields});
+            self.sort_fields.sort(function(a, b) {
+                return a.entity < b.entity ? -1 : 1;
+            });
+        });
+    });
+};
+
 Panel.prototype.subscribe = function(callback) {
-    this.options.subscribe(callback);
+    this.api_options.subscribe(callback);
 };
 
 Panel.prototype.add_sort = function() {

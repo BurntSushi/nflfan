@@ -1,7 +1,17 @@
 .nflfan-panel-game {
-  height: 400px;
   width: 90%;
   margin: 0 auto;
+}
+
+.nflfan-panel-game .play-header {
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-bottom: 0;
+  font-weight: bold;
+}
+
+.nflfan-panel-game .play-table {
+  height: 400px;
   overflow-y: scroll;
 }
 

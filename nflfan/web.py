@@ -36,7 +36,7 @@ builtins = {}
             name='v_games')
 def v_games(season, phase, week):
     phase = as_phase(phase)
-    q = nfldb_sort(nfldb.Query(db))
+    q = nfldb.Query(db).sort([('finished', 'asc'), ('gsis_id', 'asc')])
     games = q.game(season_year=season, season_type=phase, week=week).as_games()
     return template('games', season=season, phase=phase, week=week,
                     games=games)
@@ -255,6 +255,21 @@ def rest_rosters(lg, week, roster=None):
     else:
         roster = no_none(lg.roster(week, roster), 'roster', roster)
         return as_rest_roster(score(lg, roster))
+
+
+@bottle.get('/v1/fields/<entity>', name='fields')
+@rest
+def rest_fields(entity):
+    ent_types = {
+        'game': nfldb.Game,
+        'drive': nfldb.Drive,
+        'play': nfldb.Play,
+        'player': nfldb.Player,
+        'play_player': nfldb.PlayPlayer,
+    }
+    if entity not in ent_types:
+        bottle.abort(404, "Unknown entity type '%s'" % entity)
+    return sorted(ent_types[entity]._sql_fields())
 
 
 def nfldb_sort(q):

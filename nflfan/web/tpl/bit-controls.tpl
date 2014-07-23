@@ -37,9 +37,13 @@
           <div class="row bot15"><div class="col-xs-12">
             <div class="form-group right10">
               <select class="form-control"
-                      data-bind="optionsCaption: 'Field',
-                                 options: $parent.available.fields,
-                                 value: field"></select>
+                      data-bind="value: field, valueAllowUnset: true,
+                                 foreach: $root.sort_fields">
+                <option>Field</option>
+                <optgroup data-bind="attr: { label: entity }, foreach: fields">
+                  <option data-bind="text: $data, value: $data"></option>
+                </optgroup>
+              </select>
             </div>
             <div class="form-group">
               <label class="radio-inline">
