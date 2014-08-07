@@ -22,6 +22,10 @@ API.prototype.game = function(gsis_id) {
     return this.json(['games', gsis_id]).done(convert_date);
 };
 
+API.prototype.plays = function() {
+    return this.json(['plays']);
+};
+
 API.prototype.plays_week = function(season, phase, week) {
     return this.json(['seasons', season, 'phases', phase,
                       'weeks', week, 'plays']);
@@ -45,7 +49,23 @@ API.prototype.weeks_phase = function(season, phase) {
 
 API.prototype.fields = function(entity) {
     return this.json(['fields', entity]);
-}
+};
+
+API.prototype.roster = function(lg_name, week, owner) {
+    return this.json(['leagues', lg_name, 'weeks', week, 'rosters', owner]);
+};
+
+API.prototype.scored_roster = function(lg_name, week, owner) {
+    var old = this.params;
+    this.params = { 'scored': '1' };
+    var r = this.json(['leagues', lg_name, 'weeks', week, 'rosters', owner]);
+    this.params = old;
+    return r;
+};
+
+API.prototype.player_score_details = function(lg_name, week, player_id) {
+    return this.json(['leagues', lg_name, 'weeks', week, 'players', player_id]);
+};
 
 return API;
 });

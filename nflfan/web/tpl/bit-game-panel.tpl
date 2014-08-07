@@ -25,12 +25,13 @@
       <small data-bind="text: nice_start_time()"></small>
     </p>
   </div>
-  <div class="play-table">
+  <div class="play-table hidden"
+       data-bind="css: { hidden: !plays() || plays().length == 0 }">
     <table class="table table-bordered">
       <tbody>
         <!-- ko foreach: plays -->
         <tr>
-          <td data-bind="text: description"></td>
+        % include('bit-play-description', **globals())
         </tr>
         <!-- /ko -->
       </tbody>

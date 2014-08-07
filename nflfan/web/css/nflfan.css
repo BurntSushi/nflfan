@@ -1,3 +1,8 @@
+.nflfan-play-table {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
 .nflfan-panel-game {
   width: 90%;
   margin: 0 auto;
@@ -13,6 +18,11 @@
 .nflfan-panel-game .play-table {
   height: 400px;
   overflow-y: scroll;
+}
+
+.short-dropdown {
+  max-height: 325px;
+  overflow-y: auto;
 }
 
 .bot3  { margin-bottom:  3px; }
@@ -35,7 +45,10 @@
 .right25 { margin-right: 25px; }
 .right30 { margin-right: 30px; }
 
+.nomar { margin: 0; }
 .nomartop { margin-top: 0; }
 .nomarleft { margin-left: 0; }
 .nomarright { margin-right: 0; }
 .nomarbot { margin-bottom: 0; }
+
+.strong { font-weight: bold; }

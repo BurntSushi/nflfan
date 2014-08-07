@@ -22,7 +22,7 @@
         }
       };
     </script>
-    <script data-main="games" src="/js/ext/require.js"></script>
+    <script data-main="{{ pagejs }}" src="/js/ext/require.js"></script>
 
     <link href="/css/bootstrap.min.css" rel="stylesheet">
     <!-- <link href="/css/bootstrap-theme.min.css" rel="stylesheet"> -->

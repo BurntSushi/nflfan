@@ -217,6 +217,17 @@ class Matchup (namedtuple('Matchup', 'owner1 owner2')):
         `nflfan.Owner` object.
         """
 
+    def other(self, ident):
+        """
+        Given an identifier for one of the owner's in this matchup,
+        return the `nflfan.Owner` of the other owner.
+        """
+        assert ident in (self.owner1.ident, self.owner2.ident)
+        if ident == self.owner1.ident:
+            return self.owner2
+        else:
+            return self.owner1
+
     def __str__(self):
         return '%s vs. %s' % (self.owner1, self.owner2)
 

@@ -105,7 +105,7 @@ def _score_defense_team(schema, db, game, rplayer,
         return 0.0
 
     q = _game_query(db, rplayer, phase=phase)
-    q.play(team=rplayer.team)
+    q.play_player(team=rplayer.team)
     teampps = q.as_aggregate()
     if len(teampps) == 0:
         return 0.0
@@ -143,13 +143,14 @@ def _defense_points_allowed(schema, db, game, rplayer,
         # side. Namely, the only points not in PA are points scored against
         # rplayer's offensive unit.
         fg_blk_tds = nfldb.Query(db)
-        fg_blk_tds.play(defense_misc_tds=1, kicking_fga=1)
+        fg_blk_tds.play_player(defense_misc_tds=1, kicking_fga=1)
         notcount = nfldb.QueryOR(db)
-        notcount.play(defense_safe=1, defense_int_tds=1, defense_frec_tds=1)
+        notcount.play_player(defense_safe=1, defense_int_tds=1,
+                             defense_frec_tds=1)
         notcount.orelse(fg_blk_tds)
 
         q = _game_query(db, rplayer, phase=phase)
-        q.play(gsis_id=game.gsis_id, team__ne=rplayer.team)
+        q.play_player(gsis_id=game.gsis_id, team__ne=rplayer.team)
         q.andalso(notcount)
         for pp in q.as_aggregate():
             pa -= 2 * pp.defense_safe
@@ -159,7 +160,7 @@ def _defense_points_allowed(schema, db, game, rplayer,
     return pa
 
 
-def score_details(schema, pp, fgs=[]):
+def score_details(schema, pp, fgs=None):
     """
     Given an nfldb database connection, a `nflfan.ScoreSchema` and
     a `nfldb.PlayPlayer` object, return a dictionary mapping the name of
@@ -169,6 +170,7 @@ def score_details(schema, pp, fgs=[]):
     `fgs` should be a a list of `nfldb.PlayPlayer`, where each
     describes a *single* field goal `attempt.
     """
+    fgs = fgs or []
     def add(d, cat, stat, pts):
         if pts == 0:
             return
@@ -231,7 +233,7 @@ def _pp_field_goals(db, rplayers, phase=nfldb.Enums.season_phase.Regular):
     """
     if len(rplayers) == 0:
         return {}
-    q = _game_query(db, rplayers[0], phase=phase).play(kicking_fga=1)
+    q = _game_query(db, rplayers[0], phase=phase).play_player(kicking_fga=1)
     d = defaultdict(list)
     for pp in q.as_play_players():
         d[pp.player_id].append(pp)

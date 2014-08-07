@@ -23,12 +23,13 @@ require(['jquery', 'lib/controls', 'lib/game-panel', 'lib/nav', 'bootstrap'],
 //    Hmm.
 
 $(document).ready(function() {
-    var $controls = new PanelControls($('#nflfan-panel-game-controls'), {
+    var $controls = new PanelControls($('#nflfan-panel-controls'), {
         available: {
-            sort_fields: ['play']
+            sort_entities: ['play'],
+            search_entities: ['player', 'drive', 'play', 'play_player']
         },
         filters: {
-            sorts: [{field: 'play_id', order: '-'}]
+            sorts: [{entity: 'play', field: 'play_id', order: '-'}]
         }
     });
     $('.nflfan-panel-game').each(function() {
