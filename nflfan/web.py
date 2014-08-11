@@ -336,7 +336,7 @@ def rest_fields(entity):
     if entity not in _ent_types:
         bottle.abort(404, "Unknown entity type '%s' (valid types: %s)"
                           % (entity, ', '.join(_ent_types.keys())))
-    return sorted(_ent_types[entity]._sql_fields())
+    return sorted(_ent_types[entity].sql_fields())
 
 
 @bottle.get('/v1/query/<entity>', name='v1_query')
@@ -363,7 +363,10 @@ def nfldb_query_exec(as_type):
     '''
     assert as_type in _as_type_funs
     tyfuns = _as_type_funs[as_type]
-    return map(tyfuns['rest'], tyfuns['query'](nfldb_query()))
+    results = tyfuns['query'](nfldb_query())
+    if 'filler' in tyfuns:
+        tyfuns['filler'](db, results)
+    return map(tyfuns['rest'], results)
 
 
 def nfldb_query(params=None):
@@ -521,7 +524,7 @@ def as_rest_game(g):
 
 
 def as_rest_drive(d):
-    return {
+    obj = {
         'drive_id': d.drive_id,
         'start_field': str(d.start_field),
         'end_field': str(d.end_field),
@@ -535,7 +538,11 @@ def as_rest_drive(d):
         'pos_time': str(d.pos_time),
         'result': d.result,
         'yards_gained': d.yards_gained,
+        'game': None,
     }
+    if d._game is not None:
+        obj['game'] = as_rest_game(d._game)
+    return obj
 
 
 def as_rest_play(p):
@@ -552,12 +559,17 @@ def as_rest_play(p):
         'time': str(p.time),
         'yardline': str(p.yardline),
         'yards_to_go': p.yards_to_go,
-        'players': [pp.player_id for pp in p.play_players],
+        'players': [],
+        'drive': None,
     }
     for field in nfldb.stat_categories.iterkeys():
         v = getattr(p, field)
         if v != 0:
             d[field] = v
+    if p._play_players is not None:
+        d['players'] = [pp.player_id for pp in p._play_players]
+    if p._drive is not None:
+        d['drive'] = as_rest_drive(p._drive)
     return d
 
 
@@ -570,6 +582,8 @@ def as_rest_play_player(p):
         'points': p.points,
         'scoring_team': p.scoring_team,
         'team': p.team,
+        'play': None,
+        'player': None,
     }
     for field, cat in nfldb.stat_categories.iteritems():
         if cat.category_type != nfldb.Enums.category_scope.player:
@@ -577,6 +591,10 @@ def as_rest_play_player(p):
         v = getattr(p, field)
         if v != 0:
             d[field] = v
+    if p._play is not None:
+        d['play'] = as_rest_drive(p._play)
+    if p._player is not None:
+        d['player'] = as_rest_player(p._player)
     return d
 
 
@@ -685,10 +703,15 @@ def exec_time(cb):
 # Maps strings to appropriate `nfldb.Query` and REST transformation functions.
 _as_type_funs = {
     'game': {'query': nfldb.Query.as_games, 'rest': as_rest_game},
-    'drive': {'query': nfldb.Query.as_drives, 'rest': as_rest_drive},
-    'play': {'query': nfldb.Query.as_plays, 'rest': as_rest_play},
+    'drive': {'query': nfldb.Query.as_drives,
+              'rest': as_rest_drive,
+              'filler': nfldb.Drive.fill_games},
+    'play': {'query': nfldb.Query.as_plays,
+             'rest': as_rest_play,
+             'filler': nfldb.Play.fill_drives},
     'play_player': {'query': nfldb.Query.as_play_players,
-                    'rest': as_rest_play_player},
+                    'rest': as_rest_play_player,
+                    'filler': nfldb.PlayPlayer.fill_plays},
     'player': {'query': nfldb.Query.as_players, 'rest': as_rest_player},
     'aggregate': {'query': nfldb.Query.as_aggregate,
                   'rest': as_rest_play_player},

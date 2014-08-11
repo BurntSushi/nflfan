@@ -55,10 +55,10 @@
   <div class="col-xs-8">
     <div class="nflfan-play-table">
       <div class="play-table hidden"
-           data-bind="css: { hidden: !plays() || plays().length == 0 }">
+           data-bind="css: { hidden: !rows() || rows().length == 0 }">
         <table class="table table-bordered">
           <tbody>
-            <!-- ko foreach: plays -->
+            <!-- ko foreach: rows -->
             <tr>
               % include('bit-play-description', **globals())
             </tr>

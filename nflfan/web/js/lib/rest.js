@@ -15,6 +15,10 @@ API.prototype.json = function(url_pieces) {
     return $.getJSON(this.url(url_pieces));
 }
 
+API.prototype.query = function(entity) {
+    return this.json(['query', entity]);
+};
+
 API.prototype.game = function(gsis_id) {
     var convert_date = function(json) {
         json.start_time = new Date(json.start_time);
