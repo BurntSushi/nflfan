@@ -1,6 +1,6 @@
 <!-- ko foreach: filters.sorts -->
 <div class="row bot15">
-  <div class="col-xs-6">
+  <div class="col-xs-5">
     <div class="btn-group">
       <button class="btn btn-default dropdown-toggle"
               type="button" data-toggle="dropdown">
@@ -23,7 +23,7 @@
       </ul>
     </div>
   </div>
-  <div class="col-xs-6 text-right">
+  <div class="col-xs-7 text-right">
     <div class="btn-group">
       <button class="btn btn-default dropdown-toggle"
               type="button" data-toggle="dropdown">

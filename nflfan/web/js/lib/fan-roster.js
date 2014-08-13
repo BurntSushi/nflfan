@@ -1,38 +1,5 @@
 define(['jquery', 'knockout', 'lib/rest'], function($, ko, API) {
 
-ko.bindingHandlers.show_player_details = {
-    init: function(el, _, _, _, ctxt) {
-        var self = ctxt.$root;
-        var rp = ctxt.$data;
-        if (!rp.player_id) {
-            $(el).click(function(ev) { ev.preventDefault(); });
-            return;
-        }
-
-        $(el).click(function(ev) {
-            ev.preventDefault();
-            ev.stopPropagation();
-            self.player_details(null);
-            self.api
-                .player_score_details(self.league_name, self.week, rp.player_id)
-                .done(function(json) {
-                    self.player_details(json);
-                    var p = $(el).data('bs.popover');
-                    p.options.content = $('#popover-content').html();
-                    $(el).popover('show');
-                    console.log(json);
-                });
-        });
-        var opts = {
-            html: true,
-            trigger: 'focus',
-            template: '<div class="popover"><div class="popover-content"></div></div>',
-            content: ' '
-        };
-        $(el).popover(opts);
-    }
-}
-
 function FanRoster($node) {
     var self = this;
     self.api = new API();

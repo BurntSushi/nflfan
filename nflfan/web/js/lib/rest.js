@@ -51,8 +51,8 @@ API.prototype.weeks_phase = function(season, phase) {
     return this.json(['seasons', season, 'phases', phase, 'weeks']);
 };
 
-API.prototype.fields = function(entity) {
-    return this.json(['fields', entity]);
+API.prototype.fields = function() {
+    return this.json(['fields']);
 };
 
 API.prototype.roster = function(lg_name, week, owner) {

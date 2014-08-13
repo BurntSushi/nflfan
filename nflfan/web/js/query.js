@@ -1,12 +1,14 @@
-require(['jquery', 'lib/controls', 'lib/play-table', 'lib/url', 'lib/nav', 'bootstrap'],
-        function($, PanelControls, PlayTable, url) {
+require(['jquery', 'lib/controls', 'lib/query', 'lib/url', 'lib/nav',
+         'lib/error', 'bootstrap'],
+        function($, PanelControls, QueryTable, url) {
 
 $(document).ready(function() {
     var ENTITIES = ['game', 'drive', 'play', 'play_player', 'player', 'aggregate'];
     var OPS = {'eq': '=', 'ne': '!=', 'gt': '>', 'ge': '>=', 'lt': '<', 'le': '<='};
 
     var params = url.params(window.location.href);
-    var limit = undefined, search = [], sorts = [];
+    var search = [], sorts = [];
+    var simple_params = {limit: null, entity: 'play', my_players: false}
     for (param in params) {
         if (param == 'sort') {
             var fields = params[param];
@@ -22,8 +24,8 @@ $(document).ready(function() {
             });
             continue;
         }
-        if (param == 'limit') {
-            limit = params[param];
+        if (typeof simple_params[param] != 'undefined') {
+            simple_params[param] = params[param];
             continue;
         }
 
@@ -46,15 +48,16 @@ $(document).ready(function() {
         }
     }
     var $controls = new PanelControls($('#nflfan-panel-controls'), {
+        my_players: simple_params.my_players,
         available: { }, // everything is available
         filters: {
-            limit: limit,
+            limit: simple_params.limit,
             search: search,
             sorts: sorts
         }
     });
-    $('.nflfan-play-table').each(function() {
-        new PlayTable($controls, $(this));
+    $('.nflfan-query-table').each(function() {
+        new QueryTable($controls, $(this), simple_params.entity);
     });
 });
 

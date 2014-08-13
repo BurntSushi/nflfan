@@ -25,9 +25,7 @@
     <script data-main="{{ pagejs }}" src="/js/ext/require.js"></script>
 
     <link href="/css/bootstrap.min.css" rel="stylesheet">
-    <!-- <link href="/css/bootstrap-theme.min.css" rel="stylesheet"> -->
     <link href="/css/nflfan.css" rel="stylesheet">
-
   </head>
   <body>
     {{! base }}

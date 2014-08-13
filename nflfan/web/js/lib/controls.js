@@ -24,20 +24,25 @@ function Panel($node, options) {
     options.filters = options.filters || {};
 
     $node.submit(function() { return false; });
+    $node.find('form').submit(function() { return false; });
 
     self.api = new API();
     self.filters = {};
+    self.options = options;
     self.available = $.extend({
         limits: DEFAULT_LIMITS,
         sort_entities: ENTITIES,
-        search_entities: ENTITIES
-    }, options.available);
-    self.my_players = ko.observable(false);
+        search_entities: ENTITIES,
+    }, self.options.available);
+    for (k in self.available) {
+        self.available[k] = ko.observableArray(self.available[k]);
+    }
+    self.my_players = ko.observable(self.options.my_players || false);
 
-    self._init_entity_fields(options);
-    self._init_limit(options);
-    self._init_sort(options);
-    self._init_search(options);
+    self._init_entity_fields();
+    self._init_limit();
+    self._init_sort();
+    self._init_search();
 
     // This is where the stuff in the UI is translated into URL parameters.
     // Not all changes in the UI correspond to a change in the URL parameters.
@@ -103,7 +108,7 @@ Panel.prototype.remove_sort = function(field) {
 };
 
 Panel.prototype.add_search = function(entity) {
-    if (this.available.search_entities.indexOf(entity) == -1) {
+    if (this.available.search_entities().indexOf(entity) == -1) {
         return;
     }
     this.filters.search.push({
@@ -117,28 +122,36 @@ Panel.prototype.remove_search = function(field) {
     this.filters.search.remove(field);
 };
 
-Panel.prototype._init_entity_fields = function(options) {
+Panel.prototype._init_entity_fields = function() {
     var self = this;
 
-    self.entity_fields = {};  // entity |--> [field]
-    ENTITIES.forEach(function(entity) {
-        self.entity_fields[entity] = ko.observable();
-        self.api.fields(entity).done(function(fields) {
-            self.entity_fields[entity](fields);
-        });
+    self.entity_fields = {  // entity |--> [field]
+        game: ko.observable(),
+        drive: ko.observable(),
+        play: ko.observable(),
+        play_player: ko.observable(),
+        aggregate: ko.observable(),
+        player: ko.observable(),
+        stats_play: ko.observable(),
+        stats_play_player: ko.observable(),
+    };
+    self.api.fields().done(function(fields) {
+        for (entity in fields) {
+            self.entity_fields[entity](fields[entity]);
+        }
     });
 }
 
-Panel.prototype._init_limit = function(options) {
+Panel.prototype._init_limit = function() {
     var self = this;
-    self.filters.limit = ko.observable(options.filters.limit);
+    self.filters.limit = ko.observable(self.options.filters.limit);
 };
 
-Panel.prototype._init_sort = function(options) {
+Panel.prototype._init_sort = function() {
     var self = this;
 
     self.filters.sorts = ko.observableArray();
-    (options.filters.sorts || []).forEach(function(v) {
+    (self.options.filters.sorts || []).forEach(function(v) {
         self.filters.sorts.push({
             entity: ko.observable(v.entity),
             field: ko.observable(v.field),
@@ -147,11 +160,11 @@ Panel.prototype._init_sort = function(options) {
     });
 };
 
-Panel.prototype._init_search = function(options) {
+Panel.prototype._init_search = function() {
     var self = this;
 
     self.filters.search = ko.observableArray();
-    (options.filters.search || []).forEach(function(v) {
+    (self.options.filters.search || []).forEach(function(v) {
         self.filters.search.push({
             entity: ko.observable(v.entity),
             field: ko.observable(v.field),

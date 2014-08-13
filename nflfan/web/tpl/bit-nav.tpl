@@ -2,7 +2,7 @@
      data-season="{{season}}" data-phase="{{phase}}" data-week="{{week}}">
 
   <div class="btn-group">
-    <div class="btn-group btn-group-lg">
+    <div class="btn-group btn-group">
       <button class="btn btn-default dropdown-toggle"
               type="button"
               id="nav-week"
@@ -23,7 +23,7 @@
       </ul>
     </div>
 
-    <div class="btn-group btn-group-lg">
+    <div class="btn-group btn-group">
       <button class="btn btn-default dropdown-toggle"
               type="button"
               id="nav-week"
@@ -46,7 +46,7 @@
       </ul>
     </div>
 
-    <div class="btn-group btn-group-lg">
+    <div class="btn-group btn-group">
       <button class="btn btn-default dropdown-toggle"
               type="button"
               id="nav-week"

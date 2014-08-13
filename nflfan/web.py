@@ -4,10 +4,12 @@ import itertools
 import json
 import os.path as path
 import time
+import traceback
 
 import bottle
 
 import nfldb
+from nfldb.types import _play_categories, _player_categories
 import nflfan
 
 try:
@@ -52,8 +54,8 @@ def v_games(season, phase, week):
                     games=games)
 
 
-@bottle.get('/plays', name='v_plays')
-def v_plays():
+@bottle.get('/query', name='v_query')
+def v_query():
     params = bottle.request.params
     args = {}
     if 'game_season_year' in params:
@@ -62,7 +64,12 @@ def v_plays():
         args['phase'] = as_phase(params.get('game_season_type'))
     if 'game_week' in params:
         args['week'] = params.get('game_week')
-    return template('plays', **args)
+
+    phase, season, week = nfldb.current(db)
+    args.setdefault('season', season)
+    args.setdefault('phase', phase)
+    args.setdefault('week', week)
+    return template('query', **args)
 
 
 @bottle.get('/seasons/<season:int>/phases/<phase>'
@@ -108,7 +115,13 @@ def static_fonts(name):
 def rest(f):
     def _(*args, **kwargs):
         bottle.response.content_type = 'application/json'
-        return json.dumps(f(*args, **kwargs), indent=2)
+        try:
+            return json.dumps(f(*args, **kwargs), indent=2)
+        except Exception as e:
+            bottle.response.content_type = 'text/plain'
+            bottle.response.status = 500
+            traceback.print_exc()
+            return str(e)
     return _
 
 
@@ -330,13 +343,22 @@ def rest_rosters(lg, week, roster=None):
         return as_rest_roster(score(lg, roster))
 
 
-@bottle.get('/v1/fields/<entity>', name='v1_fields')
+@bottle.get('/v1/fields', name='v1_fields')
 @rest
-def rest_fields(entity):
-    if entity not in _ent_types:
-        bottle.abort(404, "Unknown entity type '%s' (valid types: %s)"
-                          % (entity, ', '.join(_ent_types.keys())))
-    return sorted(_ent_types[entity].sql_fields())
+def rest_fields():
+    fields = {
+        'game': nfldb.Game.sql_fields(),
+        'drive': nfldb.Drive.sql_fields(),
+        'play': nfldb.Play.sql_fields(),
+        'play_player': nfldb.PlayPlayer.sql_fields(),
+        'aggregate': nfldb.PlayPlayer.sql_fields(),
+        'player': nfldb.Player.sql_fields(),
+        'stats_play': _play_categories,
+        'stats_play_player': _player_categories,
+    }
+    for k in fields:
+        fields[k] = sorted(fields[k])
+    return fields
 
 
 @bottle.get('/v1/query/<entity>', name='v1_query')
@@ -373,6 +395,7 @@ def nfldb_query(params=None):
     if params is None:
         params = bottle.request.query
     q = nfldb.Query(db)
+    aggregate = False
     for param in params:
         if param in ('limit', 'sort', 'my_players'):
             continue
@@ -392,6 +415,9 @@ def nfldb_query(params=None):
             continue
         elif len(val) == 1:
             val = val[0]
+
+        if entity == 'aggregate':
+            aggregate = True
         _query_funs[entity](q, **{field: val})
     q = nfldb_sort(q)
 
@@ -400,7 +426,7 @@ def nfldb_query(params=None):
     # We do this by retrieving all games matching the query and then use
     # the resulting games to pinpoint (year, phase, week) values to use
     # to add to the query.
-    if params.get('my_players', '0') == '1':
+    if not aggregate and params.get('my_players', '0') == '1':
         gsis_ids = [g.gsis_id for g in q.as_games()]
         games = nfldb.Query(db).game(gsis_id=gsis_ids).as_games()
 
@@ -422,7 +448,7 @@ def nfldb_query(params=None):
                 if my_roster is None:
                     continue
                 for rp in my_roster.players:
-                    if rp.player_id is not None:
+                    if not rp.bench and rp.player_id is not None:
                         pids.add(rp.player_id)
         q.player(player_id=list(pids))
     return q
@@ -561,11 +587,14 @@ def as_rest_play(p):
         'yards_to_go': p.yards_to_go,
         'players': [],
         'drive': None,
+        'fields': [],
     }
     for field in nfldb.stat_categories.iterkeys():
         v = getattr(p, field)
         if v != 0:
             d[field] = v
+            d['fields'].append(field)
+    d['fields'].sort()
     if p._play_players is not None:
         d['players'] = [pp.player_id for pp in p._play_players]
     if p._drive is not None:
@@ -584,6 +613,7 @@ def as_rest_play_player(p):
         'team': p.team,
         'play': None,
         'player': None,
+        'fields': [],
     }
     for field, cat in nfldb.stat_categories.iteritems():
         if cat.category_type != nfldb.Enums.category_scope.player:
@@ -591,8 +621,10 @@ def as_rest_play_player(p):
         v = getattr(p, field)
         if v != 0:
             d[field] = v
+            d['fields'].append(field)
+    d['fields'].sort()
     if p._play is not None:
-        d['play'] = as_rest_drive(p._play)
+        d['play'] = as_rest_play(p._play)
     if p._player is not None:
         d['player'] = as_rest_player(p._player)
     return d
@@ -701,6 +733,10 @@ def exec_time(cb):
 
 
 # Maps strings to appropriate `nfldb.Query` and REST transformation functions.
+def _fill_plays_and_players(db, pps):
+    nfldb.PlayPlayer.fill_plays(db, pps)
+    nfldb.PlayPlayer.fill_players(db, pps)
+
 _as_type_funs = {
     'game': {'query': nfldb.Query.as_games, 'rest': as_rest_game},
     'drive': {'query': nfldb.Query.as_drives,
@@ -711,10 +747,11 @@ _as_type_funs = {
              'filler': nfldb.Play.fill_drives},
     'play_player': {'query': nfldb.Query.as_play_players,
                     'rest': as_rest_play_player,
-                    'filler': nfldb.PlayPlayer.fill_plays},
+                    'filler': _fill_plays_and_players},
     'player': {'query': nfldb.Query.as_players, 'rest': as_rest_player},
     'aggregate': {'query': nfldb.Query.as_aggregate,
-                  'rest': as_rest_play_player},
+                  'rest': as_rest_play_player,
+                  'filler': nfldb.PlayPlayer.fill_players},
 }
 
 
