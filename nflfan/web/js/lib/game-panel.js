@@ -33,15 +33,7 @@ GamePanel.prototype.update_plays = function() {
 }
 
 GamePanel.prototype.nice_start_time = function() {
-    var options = {
-        hour12: true,
-        weekday: 'short',
-        month: 'short',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit'
-    };
-    return this.game().start_time.toLocaleDateString(undefined, options);
+    return nice_datetime(this.game().start_time);
 };
 
 return GamePanel;

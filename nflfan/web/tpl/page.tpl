@@ -21,6 +21,18 @@
           }
         }
       };
+
+      function nice_datetime(t) {
+        var options = {
+            hour12: true,
+            weekday: 'short',
+            month: 'short',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        };
+        return t.toLocaleDateString(undefined, options);
+      }
     </script>
     <script data-main="{{ pagejs }}" src="/js/ext/require.js"></script>
 

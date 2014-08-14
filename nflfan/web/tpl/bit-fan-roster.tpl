@@ -28,7 +28,8 @@
   </div>
   <table class="table table-bordered table-striped">
     <thead>
-      <tr data-bind="css: { success: any_playing }">
+      <tr data-bind="css: { 'bg-success': total() >= opponent_points(),
+                            'bg-danger': total() < opponent_points() }">
         % if get('is_matchup', False):
           <th colspan="3">{{owner.name}}</th>
         % else:

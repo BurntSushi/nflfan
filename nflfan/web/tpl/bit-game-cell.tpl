@@ -19,4 +19,8 @@
     <span data-bind="text: phase"></span>
     , Week <span data-bind="text: week"></span>
   </small>
+
+  <br>
+
+  <small data-bind="text: nice_datetime(new Date(start_time))"></small>
 </td>

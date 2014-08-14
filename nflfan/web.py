@@ -12,6 +12,9 @@ import nfldb
 from nfldb.types import _play_categories, _player_categories
 import nflfan
 
+import nfldb.db as dbdb
+dbdb._SHOW_QUERIES = True
+
 try:
     strtype = basestring
 except NameError:
@@ -427,11 +430,18 @@ def nfldb_query(params=None):
     # the resulting games to pinpoint (year, phase, week) values to use
     # to add to the query.
     if not aggregate and params.get('my_players', '0') == '1':
-        gsis_ids = [g.gsis_id for g in q.as_games()]
-        games = nfldb.Query(db).game(gsis_id=gsis_ids).as_games()
+        # This is deeply regrettable, but we must relax the sort/limit
+        # restriction, otherwise we might not get all of the games
+        # for this query.
+        # This would be unforgivable, but the `games` table is the smallest
+        # of the bunch, so perhaps we can get away with it.
+        old_sorts, q._sort_exprs = q._sort_exprs, None
+        old_limit, q._limit = q._limit, None
+        games = q.as_games()
+        q._limit, q._sort_exprs = old_limit, old_sorts
 
         # Collect all (year, phase, week) and dedup them.
-        # Put them back into a list of dicts for easier mingling with Query.
+        # Put them back into a list of dicts for easier mingling.
         keys = set((g.season_year, g.season_type, g.week) for g in games)
         keys = [{'season_year': k[0], 'season_type': k[1], 'week': k[2]}
                 for k in keys]
@@ -450,6 +460,8 @@ def nfldb_query(params=None):
                 for rp in my_roster.players:
                     if not rp.bench and rp.player_id is not None:
                         pids.add(rp.player_id)
+
+        # Now add the restriction to the current query.
         q.player(player_id=list(pids))
     return q
 
@@ -581,7 +593,6 @@ def as_rest_play(p):
         'note': p.note,
         'points': p.points,
         'pos_team': p.pos_team,
-        'scoring_team': p.scoring_team,
         'time': str(p.time),
         'yardline': str(p.yardline),
         'yards_to_go': p.yards_to_go,
@@ -742,7 +753,7 @@ _as_type_funs = {
     'drive': {'query': nfldb.Query.as_drives,
               'rest': as_rest_drive,
               'filler': nfldb.Drive.fill_games},
-    'play': {'query': nfldb.Query.as_plays,
+    'play': {'query': lambda q: q.as_plays(fill=False),
              'rest': as_rest_play,
              'filler': nfldb.Play.fill_drives},
     'play_player': {'query': nfldb.Query.as_play_players,
