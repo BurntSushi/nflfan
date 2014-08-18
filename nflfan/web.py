@@ -10,10 +10,9 @@ import bottle
 
 import nfldb
 from nfldb.types import _play_categories, _player_categories
-import nflfan
+import nflvid
 
-import nfldb.db as dbdb
-dbdb._SHOW_QUERIES = True
+import nflfan
 
 try:
     strtype = basestring
@@ -80,7 +79,6 @@ def v_query():
             name='v_leagues')
 def v_leagues(season, phase, week):
     lgs = leagues(season=season, phase=phase)
-    print(map(lambda lg: lg.ident, list(leagues(season=season, phase=phase))))
     return template('leagues', season=season, phase=phase, week=week,
                     leagues=lgs)
 
@@ -90,7 +88,6 @@ def v_leagues(season, phase, week):
             name='v_matchups')
 def v_matchups(season, phase, week):
     lgs = leagues(season=season, phase=phase)
-    print(map(lambda lg: lg.ident, list(leagues(season=season, phase=phase))))
     return template('matchups', season=season, phase=phase, week=week,
                     leagues=lgs)
 
@@ -98,6 +95,12 @@ def v_matchups(season, phase, week):
 @bottle.get('/favicon.ico')
 def v_favicon():
     bottle.abort(404, "No favicon")
+
+
+@bottle.get('/vid/<gsis_id>/<play_id>')
+def static_vid(gsis_id, play_id):
+    root = path.join(conf.get('footage_pbp_path', ''), gsis_id)
+    return bottle.static_file(play_id, root=root)
 
 
 @bottle.get('/css/<name:path>')
@@ -399,8 +402,9 @@ def nfldb_query(params=None):
         params = bottle.request.query
     q = nfldb.Query(db)
     aggregate = False
+    skip = ['limit', 'sort', 'my_players', 'refresh', 'refresh_count']
     for param in params:
-        if param in ('limit', 'sort', 'my_players'):
+        if param in skip:
             continue
         if '_' not in param:
             return bottle.abort(500, "Unknown query parameter: %s" % param)
@@ -472,7 +476,7 @@ def nfldb_sort(q):
     limit criteria to it from the request parameters.
     '''
     params = bottle.request.query
-    limit = min(300, param_int('limit', 20))
+    limit = min(500, param_int('limit', 20))
     sorts = []  # param to pass to nfldb.Query().sort(...)
     for field in params.getall('sort'):
         if len(field) == 0:
@@ -599,6 +603,7 @@ def as_rest_play(p):
         'players': [],
         'drive': None,
         'fields': [],
+        'video_url': watch_play_url(p),
     }
     for field in nfldb.stat_categories.iterkeys():
         v = getattr(p, field)
@@ -611,7 +616,6 @@ def as_rest_play(p):
     if p._drive is not None:
         d['drive'] = as_rest_drive(p._drive)
     return d
-
 
 def as_rest_play_player(p):
     d = {
@@ -675,6 +679,14 @@ def no_none(v, thing, key):
     if v is None:
         bottle.abort(400, "Could not find %s with id %s" % (thing, key))
     return v
+
+
+def watch_play_url(p):
+    pbp_path = conf.get('footage_pbp_path', '')
+    play_path = nflvid.footage_play(pbp_path, p.gsis_id, p.play_id)
+    if play_path is not None:
+        return '/vid/%s/%04d.mp4' % (p.gsis_id, p.play_id)
+    return None
 
 
 def scored_roster(lg, roster):
@@ -795,7 +807,7 @@ if __name__ == '__main__':
     builtins['conf'] = conf
 
     bottle.install(exec_time)
-    bottle.run(server='paste', host='0.0.0.0', port=8090, debug=True,
+    bottle.run(server='bjoern', host='localhost', port=8000, debug=True,
                reloader=True)
 
     db.close()

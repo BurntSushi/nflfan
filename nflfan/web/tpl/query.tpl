@@ -26,7 +26,9 @@
 
       <div class="panel panel-default hidden"
            data-bind="css: { hidden: false }">
-        <div class="panel-heading"><h3 class="panel-title">Limits</h3></div>
+        <div class="panel-heading">
+          <h3 class="panel-title">Miscellaneous</h3>
+        </div>
         <div class="panel-body">
           <div class="row bot10">
             <div class="col-xs-6">
@@ -35,10 +37,26 @@
                       data-bind="css: { 'btn-default': !my_players(),
                                         'btn-success': my_players() },
                                  click: function() { my_players(!my_players()); }">
-                Limit to my fantasy players
+                Only show my fantasy players
               </button>
             </div>
           </div>
+          <div class="row bot10"><div class="col-xs-12">
+            <button type="button"
+                    class="btn btn-default"
+                    data-bind="css: { 'btn-default': !refresh(),
+                                      'btn-success': refresh() },
+                               click: function() { refresh(!refresh()); }">
+              Auto refresh
+            </button>
+            <button type="button"
+                    class="btn btn-default"
+                    data-bind="click: function() {
+                      refresh_count(refresh_count() + 1);
+                    }">
+              Refresh
+            </button>
+          </div></div>
           <div class="row">
             <div class="col-xs-6">
               <select class="form-control" id="limit"
@@ -53,10 +71,9 @@
     </form>
   </div>
   <div class="col-xs-12 col-sm-12 col-md-7 col-lg-8">
-    <div class="nflfan-query-table hidden"
-         data-bind="css: { hidden: !rows() || rows().length == 0 }">
+    <div class="nflfan-query-table">
       <div class="row bot15">
-        <div class="col-xs-12">
+        <div class="col-xs-8">
           <span class="lead">Show as:</span>
           &nbsp;&nbsp;&nbsp;
           <!-- ko foreach: show_entities -->
@@ -70,8 +87,15 @@
 </div>
           <!-- /ko -->
         </div>
+        <div class="col-xs-4 text-right lead nomar">
+          Showing
+          <span data-bind="text: rows() ? rows().length : 0"></span>
+          result(s)
+        </div>
       </div>
-      <div class="row"><div class="col-xs-12">
+      <div class="row hidden"
+           data-bind="css: { hidden: !rows() || rows().length == 0 }">
+        <div class="col-xs-12">
 
 <!-- ko if: showing() == 'game' -->
 <table class="table table-bordered">
@@ -206,7 +230,9 @@
       <div class="row"><div class="col-xs-12">
         <form class="form-inline" role="form">
           <div class="form-group">
-            <label class="lead" for="permalink">Permalink:</label>
+            <label class="lead" for="permalink">
+              <a data-bind="attr: { href: window.location.origin + permalink() }">Permalink:</a>
+            </label>
             <input type="text" class="form-control" size="100"
                    data-bind="value: window.location.origin + permalink()">
           </div>

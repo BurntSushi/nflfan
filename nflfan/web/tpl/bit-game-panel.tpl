@@ -37,4 +37,16 @@
       </tbody>
     </table>
   </div>
+  <div class="play-header text-right hidden"
+       data-bind="attr: { title: game().gsis_id },
+                  css: { hidden: !plays() || plays().length == 0,
+                         'bg-success': game().finished,
+                         'bg-danger': game().is_playing,
+                         'bg-info': !game().finished && !game().is_playing }">
+    <small>
+      <a href="/query?entity=play&game_gsis_id={{g.gsis_id}}&sort=-play_id">
+        Search plays
+      </a>
+    </small>
+  </div>
 </div>

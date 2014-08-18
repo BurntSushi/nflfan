@@ -10,7 +10,7 @@ return {
         if (params.length > 0) {
             path += '?';
         }
-        return '/' + path + params;
+        return ('/' + path + params).replace(/\+/g, '%20');
     },
     // Given a properly encoded URL, return its query parameters as an object.
     // Keys correspond to query parameters and values are decoded.

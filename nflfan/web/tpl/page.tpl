@@ -40,6 +40,32 @@
     <link href="/css/nflfan.css" rel="stylesheet">
   </head>
   <body>
+    <div class="modal fade" id="video" taxindex="-1" role="dialog">
+      <div class="modal-dialog modal-lg"><div class="modal-content">
+        <div class="modal-header">
+          <button type="button" class="close" data-dismiss="modal">
+            <span aria-hidden="true">&times;</span>
+            <span class="sr-only">Close</span>
+          </button>
+          <h4 class="modal-title" id="video-title">
+            Watch play
+          </h4>
+        </div>
+        <div class="modal-body">
+          <video controls="controls" muted="muted" type="video/mp4" style="width: 100%;">
+            Your browser does not support the video tag.
+          </video>
+          <br>
+          <small id="video-not-working"><p>Not working? Access the raw video here: <a href="#"></a>.</p></small>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-default" data-dismiss="modal">
+            Close
+          </button>
+        </div>
+      </div></div>
+    </div>
+
     {{! base }}
   </body>
 </html>

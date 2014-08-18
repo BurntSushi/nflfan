@@ -16,7 +16,7 @@
           <li data-bind="css: { active: $data == $parent.season }">
             <a href="#"
                data-bind="text: $data,
-                          attr: { href: $parent.url('seasons', $data) }"
+                          attr: { href: $parent.url(['(seasons/)[^/]+', '(game_season_year=)[^&]+'], $data) }"
                ></a>
           </li>
         <!-- /ko -->
@@ -39,7 +39,7 @@
             <a href="#"
                role="menuitem" tabindex="-1"
                data-bind="text: $data,
-                          attr: { href: $parent.url('phases', $data) }"
+                          attr: { href: $parent.url(['(phases/)[^/]+', '(game_season_type=)[^&]+'], $data) }"
                ></a>
           </li>
         <!-- /ko -->
@@ -63,7 +63,7 @@
             <a href="#"
                role="menuitem" tabindex="-1"
                data-bind="text: $data,
-                          attr: { href: $parent.url('weeks', $data) }"
+                          attr: { href: $parent.url(['(weeks/)[^/]+', '(game_week=)[^&]+'], $data) }"
                ></a>
           </li>
         <!-- /ko -->

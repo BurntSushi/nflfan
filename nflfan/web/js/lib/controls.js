@@ -8,15 +8,17 @@
 // It's a bug: https://github.com/knockout/knockout/issues/378
 // (Well, not everyone thinks so, but it seems like a bug to me.)
 
-define(['jquery', 'knockout', 'lib/rest'], function($, ko, API) {
+define(['jquery', 'knockout', 'lib/rest', 'lib/video'],
+       function($, ko, API, Video) {
 
-var DEFAULT_LIMITS = ['10', '20', '30', '40', '50', '100'];
+var DEFAULT_LIMITS = ['10', '20', '30', '40', '50', '100', '500'];
 var ENTITIES = ['game', 'drive', 'play', 'play_player', 'player', 'aggregate'];
 var OP_SUFFIX = {
     '=': '__eq', '!=': '__ne',
     '<': '__lt', '<=': '__le',
     '>': '__gt', '>=': '__ge'
 };
+var REFRESH_TIME = 5 * 1000;
 
 function Panel($node, options) {
     var self = this;
@@ -27,6 +29,7 @@ function Panel($node, options) {
     $node.find('form').submit(function() { return false; });
 
     self.api = new API();
+    self.video = new Video($('#video'));
     self.filters = {};
     self.options = options;
     self.available = $.extend({
@@ -38,6 +41,9 @@ function Panel($node, options) {
         self.available[k] = ko.observableArray(self.available[k]);
     }
     self.my_players = ko.observable(self.options.my_players || false);
+    self.refresh = ko.observable(false);
+    self.refresh_int = null;
+    self.refresh_count = ko.observable(0);
 
     self._init_entity_fields();
     self._init_limit();
@@ -50,6 +56,12 @@ function Panel($node, options) {
     // no selected field).
     self.api_options = ko.computed(function() {
         var params = {
+            // When the refresh count changes, it will force the parameters
+            // to change. (If parameters don't change, then callbacks aren't
+            // fired.)
+            refresh_count: self.refresh_count(),
+            refresh: self.refresh() ? '1' : '0',
+            my_players: self.my_players() ? '1' : '0',
             limit: self.filters.limit(),
             sort:
                 self.filters.sorts()
@@ -66,7 +78,6 @@ function Panel($node, options) {
             var key = search.entity() + '_' + search.field() + op;
             params[key] = search.value();
         });
-        params.my_players = self.my_players() ? '1' : '0';
 
         // If the parameters haven't changed, then return `null` indicating
         // that no new requests should be launched.
@@ -80,12 +91,41 @@ function Panel($node, options) {
             return params;
         }
     });
+
+    self.refresh.subscribe(function(val) {
+        if (val && self.refresh_int === null) {
+            self.refresh_int = window.setInterval(
+                function() {
+                    // This will force the API parameters to change and all
+                    // callbacks subscribed will be fired.
+                    self.refresh_count(self.refresh_count() + 1);
+                },
+                REFRESH_TIME);
+        } else if (!val && self._refresh_int !== null) {
+            window.clearInterval(self.refresh_int);
+            self.refresh_int = null;
+        } else {
+            console.log('Unknown refresh arguments. val: ' + val + ', ' +
+                        'refresh_int: ' + self.refresh_int);
+        }
+    });
+    self.refresh(self.options.refresh || false); // init the refresh
+
     ko.applyBindings(self, $node[0]);
 }
 
+Panel.prototype.watch_play = function(play) {
+    var self = this;
+
+    if (!play.video_url) {
+        return;
+    }
+    self.video.watch(play.description, play.video_url);
+};
+
 Panel.prototype.subscribe = function(callback) {
     var self = this;
-    this.api_options.subscribe(function(params) {
+    self.api_options.subscribe(function(params) {
         if (params === null) {
             return;
         }

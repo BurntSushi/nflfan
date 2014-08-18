@@ -25,9 +25,14 @@ function Weeks($node) {
     });
 }
 
-Weeks.prototype.url = function(param, val) {
-    var reg = new RegExp(param + "/[^/]+");
-    return window.location.href.replace(reg, param + '/' + val);
+Weeks.prototype.url = function(params, val) {
+    var cur = window.location.href;
+    for (var i = 0; i < params.length; i++) {
+        var reg = new RegExp(params[i]);
+        if (reg.test(cur)) {
+            return cur.replace(reg, '$1' + val);
+        }
+    }
 };
 
 $('.nflfan-weeks').each(function() { new Weeks($(this)); });

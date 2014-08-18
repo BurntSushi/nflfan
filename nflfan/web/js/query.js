@@ -8,8 +8,21 @@ $(document).ready(function() {
 
     var params = url.params(window.location.href);
     var search = [], sorts = [];
-    var simple_params = {limit: null, entity: 'play', my_players: false}
+    var simple_params = {
+        limit: null,
+        entity: 'play',
+        my_players: false,
+        refresh: false,
+    }
     for (param in params) {
+        if (typeof simple_params[param] != 'undefined') {
+            simple_params[param] = params[param];
+        }
+    }
+    for (param in params) {
+        if (typeof simple_params[param] != 'undefined') {
+            continue;
+        }
         if (param == 'sort') {
             var fields = params[param];
             if (typeof fields == 'string') {
@@ -17,15 +30,11 @@ $(document).ready(function() {
             }
             fields.forEach(function(field) {
                 sorts.push({
-                    entity: 'play',
+                    entity: simple_params.entity,
                     field: field.substr(1),
                     order: field[0]
                 });
             });
-            continue;
-        }
-        if (typeof simple_params[param] != 'undefined') {
-            simple_params[param] = params[param];
             continue;
         }
 
@@ -48,7 +57,8 @@ $(document).ready(function() {
         }
     }
     var $controls = new PanelControls($('#nflfan-panel-controls'), {
-        my_players: simple_params.my_players,
+        my_players: simple_params.my_players == '1',
+        refresh: simple_params.refresh == '1',
         available: { }, // everything is available
         filters: {
             limit: simple_params.limit,

@@ -34,6 +34,7 @@ QueryTable.prototype.update_rows = function(entity) {
             self.rows(rows);
 
             var params = $.extend({}, self.api.params, {entity: self.showing()});
+            delete params.refresh_count;
             self.permalink(url.make(['query'], params));
         })
         .fail(function(jqXHR, textStatus) {
