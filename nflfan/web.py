@@ -1,8 +1,10 @@
 from __future__ import absolute_import, division, print_function
 
+import argparse
 import itertools
 import json
 import os.path as path
+import sys
 import time
 import traceback
 
@@ -799,15 +801,43 @@ _ent_types = {
 
 
 if __name__ == '__main__':
+    p = argparse.ArgumentParser(
+        description='Run the NFLfan web interface.')
+    p.add_argument('--config', metavar='DIR', default='',
+                   help='Configuration directory.')
+    p.add_argument('--debug', action='store_true',
+                   help='Enable Bottle\'s debug mode.')
+    p.add_argument('--reload', action='store_true',
+                   help='Enable Bottle\'s reloading functionality.')
+    p.add_argument('--port', type=int, default=8080)
+    p.add_argument('--host', default='localhost')
+    p.add_argument('--server', default='wsgiref',
+                   help='The web server to use. You only need to change this '
+                        'if you\'re running a production server.')
+    p.add_argument('--available-servers', action='store_true',
+                   help='Shows list of available web server names and quits.')
+    args = p.parse_args()
+
+    if args.available_servers:
+        for name in sorted(bottle.server_names):
+            cls = bottle.server_names[name]
+            try:
+                __import__(name)
+                print(name)
+            except:
+                pass
+        sys.exit(0)
+
     bottle.TEMPLATE_PATH.insert(0, path.join(web_path, 'tpl'))
     db = nfldb.connect()
-    conf = nflfan.load_config(providers=nflfan.builtin_providers)
+    conf = nflfan.load_config(providers=nflfan.builtin_providers,
+                              file_path=args.config)
 
     builtins['db'] = db
     builtins['conf'] = conf
 
     bottle.install(exec_time)
-    bottle.run(server='bjoern', host='localhost', port=8000, debug=True,
-               reloader=True)
+    bottle.run(server=args.server, host=args.host, port=args.port,
+               debug=args.debug, reloader=args.reload)
 
     db.close()
