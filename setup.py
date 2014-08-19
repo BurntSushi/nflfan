@@ -14,7 +14,7 @@ except LookupError:
         return {True: enc}.get(name == 'mbcs')
     codecs.register(wrapper)
 
-install_requires = ['nfldb', 'nflvid', 'bottle', 'paste', 'toml', 'requests']
+install_requires = ['nfldb', 'nflvid', 'bottle', 'toml', 'requests']
 try:
     import argparse
 except ImportError:
