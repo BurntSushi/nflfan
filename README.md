@@ -1,6 +1,7 @@
 NFLfan is a web application that provides a user interface for searching NFL 
-data (back to 2009), collecting all of your fantasy teams into one place and 
-**watching video of any play** available on your system.
+data (back to 2009), collecting all of your fantasy teams into one place for
+live scoring updates and **watching video of any play** available on your 
+system.
 
 These features are a *culmination* of the following projects:
 
