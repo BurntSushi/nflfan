@@ -56,7 +56,7 @@ setup(
     ],
     platforms='ANY',
     packages=['nflfan'],
-    package_data={'nflfan': ['web/*/*']},
+    package_data={'nflfan': ['web/*/*', 'web/js/*/*']},
     data_files=[('share/doc/nflfan', ['README.md', 'longdesc.rst',
                                       'UNLICENSE']),
                 ('share/doc/nflfan/doc', glob('doc/nflfan/*.html')),
