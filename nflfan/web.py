@@ -80,7 +80,7 @@ def v_query():
             '/weeks/<week:int>/leagues',
             name='v_leagues')
 def v_leagues(season, phase, week):
-    lgs = leagues(season=season, phase=phase)
+    lgs = valid_leagues(leagues(season=season, phase=phase), week)
     return template('leagues', season=season, phase=phase, week=week,
                     leagues=lgs)
 
@@ -89,7 +89,7 @@ def v_leagues(season, phase, week):
             '/weeks/<week:int>/matchups',
             name='v_matchups')
 def v_matchups(season, phase, week):
-    lgs = leagues(season=season, phase=phase)
+    lgs = valid_leagues(leagues(season=season, phase=phase), week)
     return template('matchups', season=season, phase=phase, week=week,
                     leagues=lgs)
 
@@ -721,6 +721,17 @@ def leagues(season=None, phase=None):
                 continue
             leagues.append(lg)
     return sorted(leagues, key=lambda lg: (-lg.season, lg.name))
+
+
+def valid_leagues(lgs, week):
+    valid = []
+    for lg in lgs:
+        try:
+            lg._load(week)
+            valid.append(lg)
+        except IOError:
+            pass
+    return valid
 
 
 def param_int(name, default=None):
