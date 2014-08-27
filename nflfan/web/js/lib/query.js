@@ -35,7 +35,11 @@ QueryTable.prototype.update_rows = function(entity) {
 
             var params = $.extend({}, self.api.params, {entity: self.showing()});
             delete params.refresh_count;
-            self.permalink(url.make(['query'], params));
+            var link = url.make(['query'], params);
+            self.permalink(link);
+            if (window.history && window.history.pushState) {
+                window.history.pushState(params, '', link);
+            }
         })
         .fail(function(jqXHR, textStatus) {
             $('#nflfan-error p').text(jqXHR.responseText);
