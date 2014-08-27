@@ -99,6 +99,11 @@ def v_favicon():
     bottle.abort(404, "No favicon")
 
 
+@bottle.get('/robots.txt')
+def v_robots():
+    return bottle.static_file('robots.txt', root=web_path)
+
+
 @bottle.get('/vid/<gsis_id>/<play_id>')
 def static_vid(gsis_id, play_id):
     root = path.join(conf.get('footage_pbp_path', ''), gsis_id)
