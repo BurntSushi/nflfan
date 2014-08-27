@@ -693,6 +693,20 @@ def no_none(v, thing, key):
 
 def watch_play_url(p):
     pbp_path = conf.get('footage_pbp_path', '')
+    if pbp_path.startswith('http'):
+        # Video footage just isn't reliably available before 2011, so 
+        # forcefully shut it off.
+        # We only do this with HTTP since HTTP is typically used to access
+        # Neulion's network, which objectively does not have play-by-play
+        # footage before 2011.
+        if int(p.gsis_id[0:4]) < 2011:
+            return None
+
+        g = nfldb.Game.from_id(db, p.gsis_id)
+        vs = dict({k: getattr(p, k) for k in p.__slots__},
+                  yyyy=p.gsis_id[0:4], mm=p.gsis_id[4:6], dd=p.gsis_id[6:8])
+        vs = dict(vs, **{k: getattr(g, k) for k in g.__slots__})
+        return pbp_path.format(**vs)
     play_path = nflvid.footage_play(pbp_path, p.gsis_id, p.play_id)
     if play_path is not None:
         return '/vid/%s/%04d.mp4' % (p.gsis_id, p.play_id)
