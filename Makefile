@@ -4,7 +4,7 @@ all:
 	@echo "Specify a target."
 
 pypi: docs longdesc.rst
-	sudo python2 setup.py register sdist bdist_wininst upload
+	sudo python2 setup.py register sdist upload
 
 docs:
 	pdoc --html --html-dir ./doc --overwrite ./nflfan
