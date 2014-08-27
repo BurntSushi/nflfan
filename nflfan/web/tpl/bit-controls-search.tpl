@@ -1,6 +1,6 @@
 <!-- ko foreach: filters.search -->
 <div class="row bot15">
-  <div class="col-xs-5">
+  <div class="col-xs-5 col-md-12 col-lg-5">
     <div class="btn-group">
       <button class="btn btn-default dropdown-toggle"
               type="button" data-toggle="dropdown">
@@ -23,7 +23,7 @@
       </ul>
     </div>
   </div>
-  <div class="col-xs-7 text-right">
+  <div class="col-xs-7 col-md-12 col-lg-7 text-right">
     <div class="btn-group">
       <button class="btn btn-default dropdown-toggle"
               type="button" data-toggle="dropdown">
@@ -41,13 +41,13 @@
       </ul>
     </div>
     <div class="btn-group">
-      <input type="text" class="form-control" size="4"
+      <input type="text" class="form-control" size="8"
              data-bind="value: value">
     </div>
     <div class="btn-group">
       <button type="button" class="btn btn-default"
               data-bind="click: function() { $root.remove_search($data); }">
-        Remove
+        &times;
       </button>
     </div>
   </div>

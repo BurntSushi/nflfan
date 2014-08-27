@@ -53,7 +53,7 @@
     <div class="btn-group">
       <button type="button" class="btn btn-default"
               data-bind="click: function() { $root.remove_sort($data); }">
-        Remove
+        &times;
       </button>
     </div>
   </div>
