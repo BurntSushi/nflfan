@@ -9,7 +9,7 @@ $(document).ready(function() {
     var params = url.params(window.location.href);
     var search = [], sorts = [];
     var simple_params = {
-        limit: null,
+        limit: 50,
         entity: 'play',
         my_players: false,
         refresh: false,

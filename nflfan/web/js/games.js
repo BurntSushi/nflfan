@@ -29,7 +29,7 @@ $(document).ready(function() {
             search_entities: ['player', 'drive', 'play', 'play_player']
         },
         filters: {
-            sorts: [{entity: 'play', field: 'play_id', order: '-'}]
+            sorts: [{entity: 'play', field: 'play_id', order: '-'}],
         }
     });
     $('.nflfan-panel-game').each(function() {
