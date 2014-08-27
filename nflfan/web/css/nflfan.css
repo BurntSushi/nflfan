@@ -52,3 +52,13 @@
 .nomarbot { margin-bottom: 0; }
 
 .strong { font-weight: bold; }
+
+#loading {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 5px 10px;
+  display: none;
+  background: #b00;
+  color: #fff;
+}

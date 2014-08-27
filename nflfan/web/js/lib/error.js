@@ -1,4 +1,4 @@
-define(['jquery'], function($) {
+define(['jq'], function($) {
 
 $(document).ready(function() {
     var $err = $('#nflfan-error');

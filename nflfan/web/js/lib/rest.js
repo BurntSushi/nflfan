@@ -1,4 +1,4 @@
-define(['jquery', 'lib/url'], function($, url) {
+define(['jq', 'lib/url'], function($, url) {
 function API(params) {
     this.params = params || {};
 }

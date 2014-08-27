@@ -1,4 +1,4 @@
-define(['jquery'], function($) {
+define(['jq'], function($) {
 return {
     // Creates a URL given an array of path components in `pieces` and an
     // optional `params` object specifying the query string. (`params` is

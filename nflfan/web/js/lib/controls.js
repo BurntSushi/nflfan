@@ -8,7 +8,7 @@
 // It's a bug: https://github.com/knockout/knockout/issues/378
 // (Well, not everyone thinks so, but it seems like a bug to me.)
 
-define(['jquery', 'knockout', 'lib/rest', 'lib/video'],
+define(['jq', 'knockout', 'lib/rest', 'lib/video'],
        function($, ko, API, Video) {
 
 var DEFAULT_LIMITS = ['10', '20', '30', '40', '50', '100', '500'];

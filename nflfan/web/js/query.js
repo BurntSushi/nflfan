@@ -1,4 +1,4 @@
-require(['jquery', 'lib/controls', 'lib/query', 'lib/url', 'lib/nav',
+require(['jq', 'lib/controls', 'lib/query', 'lib/url', 'lib/nav',
          'lib/error', 'bootstrap'],
         function($, PanelControls, QueryTable, url) {
 

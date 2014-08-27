@@ -1,4 +1,4 @@
-require(['jquery', 'lib/controls', 'lib/game-panel', 'lib/nav', 'bootstrap'],
+require(['jq', 'lib/controls', 'lib/game-panel', 'lib/nav', 'bootstrap'],
         function($, PanelControls, GamePanel) {
 
 // Some breadcrumbs:

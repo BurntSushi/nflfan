@@ -1,4 +1,4 @@
-define(['jquery', 'knockout', 'lib/rest'], function($, ko, API) {
+define(['jq', 'knockout', 'lib/rest'], function($, ko, API) {
 
 function FanRoster($node) {
     var self = this;

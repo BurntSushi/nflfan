@@ -1,4 +1,4 @@
-define(['jquery'], function($) {
+define(['jq'], function($) {
 
 function Video($node) {
     var self = this;

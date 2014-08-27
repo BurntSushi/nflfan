@@ -11,9 +11,10 @@
         baseUrl: '/js',
         paths: {
           jquery: 'ext/jquery-2.1.1',
+          jq: 'lib/jquery',
           bootstrap: 'ext/bootstrap',
           knockout: 'ext/knockout-3.1.0',
-          sprintf: 'ext/sprintf'
+          sprintf: 'ext/sprintf',
         },
         shim: {
           bootstrap: {
@@ -40,6 +41,7 @@
     <link href="/css/nflfan.css" rel="stylesheet">
   </head>
   <body>
+    <div id="loading">Loading...</div>
     <div class="modal fade" id="video" taxindex="-1" role="dialog">
       <div class="modal-dialog modal-lg"><div class="modal-content">
         <div class="modal-header">

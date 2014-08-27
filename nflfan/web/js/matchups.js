@@ -1,4 +1,4 @@
-require(['jquery', 'lib/fan-roster', 'lib/nav', 'bootstrap'],
+require(['jq', 'lib/fan-roster', 'lib/nav', 'bootstrap'],
         function($, FanRoster) {
 
 $(document).ready(function() {
