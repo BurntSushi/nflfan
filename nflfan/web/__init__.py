@@ -30,7 +30,10 @@ except NameError:
 db = None
 """A global database connection."""
 
-web_path = path.join(path.split(__file__)[0], 'web')
+conf = None
+"""The nflfan configuration."""
+
+web_path = path.split(__file__)[0]
 """The absolute path of the directory containing web assets."""
 
 builtins = {}
@@ -816,7 +819,9 @@ _ent_types = {
 }
 
 
-if __name__ == '__main__':
+def main():
+    global db, conf
+
     p = argparse.ArgumentParser(
         description='Run the NFLfan web interface.')
     p.add_argument('--config', metavar='DIR', default='',
@@ -836,7 +841,6 @@ if __name__ == '__main__':
 
     if args.available_servers:
         for name in sorted(bottle.server_names):
-            cls = bottle.server_names[name]
             try:
                 __import__(name)
                 print(name)
@@ -855,5 +859,3 @@ if __name__ == '__main__':
     bottle.install(exec_time)
     bottle.run(server=args.server, host=args.host, port=args.port,
                debug=args.debug, reloader=args.reload)
-
-    db.close()
