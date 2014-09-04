@@ -18,7 +18,7 @@ var OP_SUFFIX = {
     '<': '__lt', '<=': '__le',
     '>': '__gt', '>=': '__ge'
 };
-var REFRESH_TIME = 5 * 1000;
+var REFRESH_TIME = 10 * 1000;
 
 function Panel($node, options) {
     var self = this;
