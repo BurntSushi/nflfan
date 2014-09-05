@@ -9,9 +9,9 @@
       if (down == 2) {
         down_txt = '2nd';
       } else if (down == 3) {
-        down_txt == '3rd';
+        down_txt = '3rd';
       } else if (down == 4) {
-        down_txt == '4th';
+        down_txt = '4th';
       }
       position += down_txt + ' and ' + yards_to_go;
     }
