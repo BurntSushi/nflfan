@@ -2,10 +2,10 @@ from __future__ import absolute_import, division, print_function
 
 from collections import namedtuple
 import json
-import multiprocessing.pool
 import os
 import re
 import sys
+import time
 
 import requests
 
@@ -18,6 +18,8 @@ import nflfan.config
 __pdoc__ = {}
 
 _user_agent = 'Mozilla/5.0 (X11; Linux x86_64)'
+# _user_agent = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/47.0.2498.0 Safari/537.36'
+# _user_agent = ''
 """
 The user agent string is heuristically determined. Namely, I was having
 problems getting some providers to authenticate with more vague user
@@ -451,35 +453,41 @@ class Provider (object):
         # pool = multiprocessing.pool.ThreadPool(3)
         # d['rosters'] = pool.map(roster, d['owners'])
         d['rosters'] = map(roster, d['owners'])
+        try:
+            os.makedirs(os.path.dirname(fp))
+        except OSError:
+            pass
         json.dump(d, open(fp, 'w+'))
 
     def _request(self, url):
         eprint('download %s' % url)
         r = self._session.get(url)
-        soup = BeautifulSoup(r.text)
+        soup = BeautifulSoup(r.text, 'html.parser')
         if self._login_form(soup):
             self._login()
 
             r = self._session.get(url)
-            soup = BeautifulSoup(r.text)
+            soup = BeautifulSoup(r.text, 'html.parser')
             if self._login_form(soup):
                 raise IOError("Authentication failure.")
         return r
 
     def _login(self):
         assert self._login_url is not None
-        soup = BeautifulSoup(self._session.get(self._login_url).text)
+        soup = BeautifulSoup(self._session.get(self._login_url).text,
+                             'html.parser')
 
         if not self._login_form(soup):
             # Already logged in!
             return
 
         form = self._login_form(soup)
-        params = self._login_params()
-        for inp in form.find_all('input', type='hidden'):
+        params = self._login_params(soup)
+        for inp in soup.select('#hiddens input[type="hidden"]'):
             params[inp['name']] = inp['value']
-        r = self._session.post(form['action'], params=params)
-        return BeautifulSoup(r.text)
+        r = self._session.post('https://login.yahoo.com' + form['action'],
+                               params=params)
+        return BeautifulSoup(r.text, 'html.parser')
 
     def _login_params(self):
         assert False, 'subclass responsibility'
@@ -506,7 +514,7 @@ class Yahoo (Provider):
         match_owner_link = re.compile('team-[0-9]+-name')
 
         url = _urls['yahoo']['owner'] % self._league_num
-        soup = BeautifulSoup(self._request(url).text)
+        soup = BeautifulSoup(self._request(url).text, 'html.parser')
         owners = []
         for link in soup.find_all(id=match_owner_link):
             ident = self._owner_id_from_url(link['href'])
@@ -519,7 +527,7 @@ class Yahoo (Provider):
 
         url = _urls['yahoo']['matchup'] % (self._league_num, week)
         rjson = self._request(url).json()
-        soup = BeautifulSoup(rjson['content'])
+        soup = BeautifulSoup(rjson['content'], 'html.parser')
         matchups = []
         for matchup in soup.find('ul').children:
             pair = list(matchup.find_all('div', class_='Fz-sm'))
@@ -553,7 +561,7 @@ class Yahoo (Provider):
         match_table_id = re.compile('^statTable[0-9]+$')
 
         url = _urls['yahoo']['roster'] % (self._league_num, owner.ident, week)
-        soup = BeautifulSoup(self._request(url).text)
+        soup = BeautifulSoup(self._request(url).text, 'html.parser')
 
         roster = Roster(owner, self._lg.season, week, [])
         for table in soup.find_all(id=match_table_id):
@@ -572,21 +580,29 @@ class Yahoo (Provider):
     def _login(self):
         soup = super(Yahoo, self)._login()
         if self._login_form(soup):
-            err_div = soup.find('div', class_='yregertxt')
+            err_div = soup.find(id='mbr-login-error')
             err_msg = 'Unknown error.'
             if err_div:
                 err_msg = err_div.text.strip()
             raise IOError('Login failed: %s' % err_msg)
 
-    def _login_params(self):
+    def _login_params(self, soup):
         return {
-            'login': self._lg.conf.get('username', ''),
+            'username': self._lg.conf.get('username', ''),
             'passwd': self._lg.conf.get('password', ''),
-            '.save': 'Sign In',
+            'signin': '',
+            # '.persistent': 'y',
+            'countrycode': '1',
+            # '_crumb': '8cSELfo475z',
+            # '_ts': str(int(time.time())),
+            # '_format': '',
+            # '_uuid': 'Q9JF85iYg9ax',
+            # '_seqid': '2',
+            # 'otp_channel': '',
         }
 
     def _login_form(self, soup):
-        return soup.find(id='login_form')
+        return soup.find('form', id='mbr-login-form')
 
 
 class ESPN (Provider):
@@ -599,7 +615,7 @@ class ESPN (Provider):
     def owners(self):
         url = _urls['espn']['owner'].format(
             league_id=self._lg.ident, season_id=self._lg.season)
-        soup = BeautifulSoup(self._request(url).text)
+        soup = BeautifulSoup(self._request(url).text, 'html.parser')
         owners = []
         for td in soup.select('tr.ownerRow td.teamName'):
             ident = self._owner_id_from_url(td.a['href'])
@@ -611,7 +627,7 @@ class ESPN (Provider):
 
         url = _urls['espn']['matchup'].format(
             league_id=self._lg.ident, season_id=self._lg.season, week=week)
-        soup = BeautifulSoup(self._request(url).text)
+        soup = BeautifulSoup(self._request(url).text, 'html.parser')
         matchupDiv = soup.find(id='scoreboardMatchups')
         matchups = []
         for table in matchupDiv.select('table.matchup'):
@@ -667,7 +683,7 @@ class ESPN (Provider):
         url = _urls['espn']['roster'].format(
             league_id=self._lg.ident, season_id=self._lg.season, week=week,
             team_id=owner.ident)
-        soup = BeautifulSoup(self._request(url).text)
+        soup = BeautifulSoup(self._request(url).text, 'html.parser')
 
         roster = Roster(owner, self._lg.season, week, [])
         for tr in soup.select('tr.pncPlayerRow'):

@@ -37,7 +37,7 @@ if __name__ == '__main__':
     providers = nflfan.builtin_providers
     conf = nflfan.load_config(providers=providers)
 
-    _, _, current_week = nfldb.current(db)
+    _, current_season, current_week = nfldb.current(db)
 
     parser = argparse.ArgumentParser(
         description='Saves your fantasy football league data for the given '
@@ -73,6 +73,8 @@ if __name__ == '__main__':
     for pname, leagues in conf['leagues'].items():
         for lg in leagues.values():
             if args.leagues and lg.name not in args.leagues:
+                continue
+            if lg.season < current_season:
                 continue
             eprint('Updating %s (week %d)...' % (lg.full_name, args.week))
             prov = providers[lg.prov_name](lg)
