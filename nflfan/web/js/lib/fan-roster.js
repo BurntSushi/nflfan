@@ -1,5 +1,7 @@
 define(['jq', 'knockout', 'lib/rest'], function($, ko, API) {
 
+var REFRESH_TIME = 10;
+
 function FanRoster($node) {
     var self = this;
     self.api = new API();
@@ -35,6 +37,10 @@ function FanRoster($node) {
 
     self.update_roster();
     self.update_opponent_points();
+    window.setInterval(function() {
+        self.update_roster();
+        self.update_opponent_points();
+    }, random_refresh_interval(REFRESH_TIME));
 
     ko.applyBindings(self, self.$node[0]);
 }
@@ -81,6 +87,12 @@ function roster_total_points(roster) {
     roster = roster || [];
     return roster.filter(function(c) { return !c['bench']; })
                  .reduce(function(p, c) { return p + c['points']; }, 0);
+}
+
+function random_refresh_interval(middle) {
+    var min = middle - 3;
+    var max = middle + 3;
+    return 1000 * (Math.floor(Math.random() * (max - min)) + min);
 }
 
 return FanRoster;

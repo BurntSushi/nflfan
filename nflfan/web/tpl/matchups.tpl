@@ -19,14 +19,16 @@ else:
       </div>
     </div>
     % for lg in leagues:
+      % owner = lg.me(lg.owners(week))
+      % matchup = lg.matchup(week, owner.ident)
+      % if matchup is None:
+      %   continue
+      % end
+      % opponent = matchup.other(owner.ident)
       <div class="row"><div class="col-xs-12">
         <h2 class="text-center">{{ lg.name }}</h4>
       </div></div>
       <div class="row">
-        % owner = lg.me(lg.owners(week))
-        % matchup = lg.matchup(week, owner.ident)
-        % opponent = matchup.other(owner.ident)
-
         <div class="bot30 col-xs-6">
           <div style="max-width: 400px; margin-left: auto;">
             % include('bit-fan-roster', league=lg, week=week, owner=owner,

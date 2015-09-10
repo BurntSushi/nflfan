@@ -21,10 +21,12 @@ else:
     <div class="row">
     % for lgs in grouped(3, leagues):
       % for lg in lgs:
-        <div class="bot30 col-xs-12 col-sm-6 col-md-4 col-lg-3">
-          % owner = lg.me(lg.owners(week))
-          % include('bit-fan-roster', league=lg, week=week, owner=owner)
-        </div>
+        % owner = lg.me(lg.owners(week))
+        % if lg.matchup(week, owner.ident) is not None:
+          <div class="bot30 col-xs-12 col-sm-6 col-md-4 col-lg-3">
+            % include('bit-fan-roster', league=lg, week=week, owner=owner)
+          </div>
+        % end
       % end
     % end
     </div>

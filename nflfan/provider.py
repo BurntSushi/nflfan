@@ -150,6 +150,8 @@ class League (namedtuple('League',
 
     def matchup(self, week, ident):
         for m in self.matchups(week):
+            if m.owner1 is None or m.owner2 is None:
+                continue
             if m.owner1.ident == ident or m.owner2.ident == ident:
                 return m
         return None
@@ -446,8 +448,8 @@ class Provider (object):
         def roster(owner):
             return self.roster(player_search, owner, week)
 
-        # pool = multiprocessing.pool.ThreadPool(3) 
-        # d['rosters'] = pool.map(roster, d['owners']) 
+        # pool = multiprocessing.pool.ThreadPool(3)
+        # d['rosters'] = pool.map(roster, d['owners'])
         d['rosters'] = map(roster, d['owners'])
         json.dump(d, open(fp, 'w+'))
 
